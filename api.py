@@ -22,9 +22,8 @@ else:
     qa_model = None
 
 
-@app.route('/', methods=['POST'])
-def ask():
-    query = request.json['q']
+def apply_qa(query, context=None, exact=False):
+
     filtered_query, query_type = filter_query(query)
     logger.info(f'Q: {query} | F: {filtered_query}')
     for q, a in [(f'"{filtered_query}"', 'title_str'),
@@ -44,7 +43,7 @@ def ask():
 
     answers = db_result['docs']
     url = 'https://cs.wikipedia.org/wiki/' + answers[0]["title"].replace(' ', '_')
-    if request.json.get('exact') and query_type == 'default' and qa_model:
+    if exact and query_type == 'default' and qa_model:
         # reranking by QA decoding score -- doesn't seem to work
         #resp_cands = []
         #for context in [a['first_paragraph'] for a in answers[:1]]:
@@ -54,8 +53,18 @@ def ask():
         # feeding multiple contexts -- doesn't seem to work
         context = "\n".join([a['first_paragraph'] for a in answers[:1]])
         response, _ = qa_model({'question': query, 'context': context})
-        return jsonify({'a': f'Myslím, že {response} (Zdroj: {url})'})
-    return jsonify({'a': f'Tohle by vám mohlo pomoct: {answers[0]["first_paragraph"]} (Zdroj: {url})'})
+        return context, response, url
+    return answers[0]["first_paragraph"], None, url
+
+
+@app.route('/', methods=['POST'])
+def ask():
+    query = request.json['q']
+    exact = request.get('exact')
+    context, response, url = apply_qa(query, None, exact)
+    if response:
+       return jsonify({'a': f'Myslím, že {response} (Zdroj: {url})'})
+    return jsonify({'a': f'Tohle by vám mohlo pomoct: {context} (Zdroj: {url})'})
 
 
 if __name__ == '__main__':
