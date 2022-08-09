@@ -24,7 +24,7 @@ def run_on_data(data_file, first_par_only=True):
                     data.append({'id': qa['id'],
                                  'question': qa['question'],
                                  'answers': answers,
-                                 'is_impossible': qa['is_impossible'],
+                                 'is_impossible': qa.get('is_impossible', False),
                                  'context': context,
                                  'title': art_title})
 

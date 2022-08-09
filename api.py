@@ -66,7 +66,7 @@ def apply_qa(query, context=None, exact=False):
 @app.route('/', methods=['POST'])
 def ask():
     query = request.json['q']
-    exact = request.get('exact')
+    exact = request.json.get('exact')
     context, response, title = apply_qa(query, None, exact)
     url = 'https://cs.wikipedia.org/wiki/' + title.replace(' ', '_')
     if not response and not context:
