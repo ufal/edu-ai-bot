@@ -1,33 +1,12 @@
-
-import json
 from argparse import ArgumentParser
 from logzero import logger
 import logzero
+from eval import DataParser
 
 from api import apply_qa
 
 
-def run_on_data(data_file, first_par_only=True):
-
-    data = []
-    if data_file.endswith('.json'):
-        raw_data = json.load(open(data_file, 'r', encoding='UTF-8'))
-
-        for article in raw_data['data']:
-            art_title = article['title']
-            if first_par_only:
-                article['paragraphs'] = article['paragraphs'][:1]
-            for paragraph in article['paragraphs']:
-                context = paragraph['context']
-                for qa in paragraph['qas']:
-                    answers = set([a['text_translated'] for a in qa['answers']] + [a['text'] for a in qa['answers']])
-                    data.append({'id': qa['id'],
-                                 'question': qa['question'],
-                                 'answers': answers,
-                                 'is_impossible': qa.get('is_impossible', False),
-                                 'context': context,
-                                 'title': art_title})
-
+def run_on_data(data):
     title_hits = 0
     answer_hits_pred_context = 0
     answer_hits_gold_context = 0
@@ -55,7 +34,11 @@ def run_on_data(data_file, first_par_only=True):
 
 if __name__ == '__main__':
     ap = ArgumentParser()
-    ap.add_argument('eval_file', type=str, help='Evaluation data')
+    ap.add_argument('eval_file', type=str, help='Evaluation data. Should be split name for sqad, filename for others.')
+    ap.add_argument('data_root', type=str, help='Evaluation data root directory')
+    ap.add_argument('data_type',type=str, help='The format of evaluation data. Can be [cs-SQuAD|SQAD|edubot]')
 
     args = ap.parse_args()
-    run_on_data(args.eval_file)
+    parser = DataParser.parser_factory(args.data_type, args.data_root, first_paragraph_only=True)
+    parser.load_edubot_from_file(args.eval_file)
+    run_on_data(parser.data)
