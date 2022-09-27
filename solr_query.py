@@ -45,8 +45,10 @@ def filter_query(query):
                          if w.tag[0] in set(['N', 'A', 'C']) and w.lemma not in STOP_WORDS])
 
     qtype = 'default'
-    if tagged[0].tag[0] == 'V':
+    if not filtered:
+        qtype = 'empty'
+    elif tagged[0].tag[0] == 'V':
         qtype = 'Y/N'
-    if tagged[0].lemma == 'proč':
+    elif tagged[0].lemma == 'proč':
         qtype = 'why'
     return filtered, qtype
