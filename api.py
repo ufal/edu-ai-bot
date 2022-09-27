@@ -31,25 +31,27 @@ def apply_qa(query, context=None, exact=False):
     filtered_query, query_type = filter_query(query)
     logger.info(f'Q: {query} | F: {filtered_query}')
     if not context and filtered_query:
-        for q, a in [(f'"{filtered_query}"', 'title_str'),
-                     (f'"{filtered_query}"', 'title_cz'),
-                     (f'"{filtered_query}"', 'first_paragraph_cz'),
-                     (filtered_query, 'title_cz'),
-                     (filtered_query, 'first_paragraph_cz')]:
-            db_result = ask_solr(query=q, attrib=a)
+        for q, a, s in [(filtered_query, 'title_cz', 'logic'),
+                        (filtered_query, 'first_paragraph_cz', 'logic'),
+                        (f'"{filtered_query}"', 'title_str', 'wiki'),
+                        (f'"{filtered_query}"', 'title_cz', 'wiki'),
+                        (f'"{filtered_query}"', 'first_paragraph_cz', 'wiki'),
+                        (filtered_query, 'title_cz', 'wiki'),
+                        (filtered_query, 'first_paragraph_cz', 'wiki')]:
+            db_result = ask_solr(query=q, attrib=a, source=s)
             if db_result.get('docs'):
                 break
 
         if not db_result.get('docs'):
             logger.info(f'No result.')
-            return None, None, None
+            return None, None, None, None
 
         logger.debug("\n" + "\n".join([f'D: {doc["title"]}/{doc["score"]}' for doc in db_result['docs']]))
 
         answers = db_result['docs']
         title = answers[0]["title"]
     else:
-        answers = [{'first_paragraph': None}]
+        answers = [{'first_paragraph': None, 'url': None}]
         title = None
 
     if exact and query_type == 'default' and qa_model:
@@ -63,19 +65,20 @@ def apply_qa(query, context=None, exact=False):
         if not context:
             context = "\n".join([a['first_paragraph'] for a in answers[:1]])
         response, _ = qa_model({'question': query, 'context': context})
-        return context, response, title
-    return answers[0]["first_paragraph"], None, title
+        return context, response, title, answers[0]["url"]
+    return answers[0]["first_paragraph"], None, title, answers[0]["url"]
 
 
 @app.route('/', methods=['POST'])
 def ask():
     query = request.json['q']
     exact = request.json.get('exact')
-    context, response, title = apply_qa(query, None, exact)
+    context, response, title, url = apply_qa(query, None, exact)
     if not response and not context:
         res = {'a': 'Toto bohužel nevím.'}
     else:
-        url = 'https://cs.wikipedia.org/wiki/' + title.replace(' ', '_')
+        if 'wikipedia' in url:
+            url = 'https://cs.wikipedia.org/wiki/' + title.replace(' ', '_')
         if response:
             res = {'a': f'Myslím, že {response} (Zdroj: {url})'}
         else:

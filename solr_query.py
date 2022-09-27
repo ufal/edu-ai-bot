@@ -10,12 +10,16 @@ URL_TO_SOLR = "http://quest.ms.mff.cuni.cz/namuddis/qasolr/wiki_test/query?q={qu
 URL_TO_UDPIPE = "http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer&tagger&data={query}"
 
 
-def ask_solr(*, query, attrib=None):
+def ask_solr(*, query, attrib=None, source='wiki'):
+    url = 'https?//cs.wikipedia.org*'
+    if source == 'logic':
+        url = 'https?//www.logickaolympiada.cz*'
     if attrib is not None:
         if isinstance(attrib, list):
             query = ' OR '.join([f'{a}:{query}' for a in attrib])
         else:
             query = f'{attrib}:{query}'
+    query = f'({query}) AND url:{url}'
     response = requests.get(
         url_fix(URL_TO_SOLR.format(query=query))
     )
