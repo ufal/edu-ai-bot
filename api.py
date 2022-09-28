@@ -28,16 +28,18 @@ else:
 
 def apply_qa(query, context=None, exact=False):
 
-    filtered_query, query_type = filter_query(query)
-    logger.info(f'Q: {query} | F: {filtered_query}')
-    if not context and filtered_query:
-        for q, a, s in [(filtered_query, 'title_cz', 'logic'),
-                        (filtered_query, 'first_paragraph_cz', 'logic'),
-                        (f'"{filtered_query}"', 'title_str', 'wiki'),
-                        (f'"{filtered_query}"', 'title_cz', 'wiki'),
-                        (f'"{filtered_query}"', 'first_paragraph_cz', 'wiki'),
-                        (filtered_query, 'title_cz', 'wiki'),
-                        (filtered_query, 'first_paragraph_cz', 'wiki')]:
+    filtered_query_nac, filtered_query_nacv, query_type = filter_query(query)
+    logger.info(f'Q: {query} | F: {filtered_query_nac} | {filtered_query_nacv}')
+    if not context and filtered_query_nacv:
+        for q, a, s in [(filtered_query_nacv, 'title_cz', 'logic'),
+                        (filtered_query_nacv, 'first_paragraph_cz', 'logic'),
+                        (f'"{filtered_query_nac}"', 'title_str', 'wiki'),
+                        (f'"{filtered_query_nac}"', 'title_cz', 'wiki'),
+                        (f'"{filtered_query_nac}"', 'first_paragraph_cz', 'wiki'),
+                        (filtered_query_nac, 'title_cz', 'wiki'),
+                        (filtered_query_nacv, 'first_paragraph_cz', 'wiki')]:
+            if not q:  # skip if filtered_query_nac is empty
+                continue
             db_result = ask_solr(query=q, attrib=a, source=s)
             if db_result.get('docs'):
                 break
@@ -79,10 +81,12 @@ def ask():
     else:
         if 'wikipedia' in url:
             url = 'https://cs.wikipedia.org/wiki/' + title.replace(' ', '_')
-        if response:
-            res = {'a': f'Myslím, že {response} (Zdroj: {url})'}
+            if response:
+                res = {'a': f'Myslím, že {response} (Zdroj: {url})'}
+            else:
+                res = {'a': f'Tohle by vám mohlo pomoct: {context} (Zdroj: {url})'}
         else:
-            res = {'a': f'Tohle by vám mohlo pomoct: {context} (Zdroj: {url})'}
+            res = {'a': f'{context} (Zdroj: {url})'}
 
     # file logging
     if LOGFILE_PATH:

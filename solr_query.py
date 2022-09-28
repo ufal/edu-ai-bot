@@ -44,15 +44,16 @@ def filter_query(query):
     except Exception as e:
         logger.warn('UDpipe problem:' + str(e))
         return query
-    logger.debug("\n" + "\n".join(["\t".join(w) for w in tagged]))
-    filtered = " ".join([w.form for w in tagged
-                         if w.tag[0] in set(['N', 'A', 'C']) and w.lemma not in STOP_WORDS])
-
+    logger.debug("\n" + "\n".join(["\t".join([w['form'], w['lemma'], w['tag']]) for w in tagged]))
+    filtered_nac = " ".join([w.form for w in tagged
+                             if w.tag[0] in set(['N', 'A', 'C']) and w.lemma not in STOP_WORDS])
+    filtered_nacv = " ".join([w.form for w in tagged
+                              if w.tag[0] in set(['N', 'A', 'C', 'V']) and w.lemma not in STOP_WORDS])
     qtype = 'default'
-    if not filtered:
+    if not filtered_nacv:
         qtype = 'empty'
     elif tagged[0].tag[0] == 'V':
         qtype = 'Y/N'
     elif tagged[0].lemma == 'proč':
         qtype = 'why'
-    return filtered, qtype
+    return filtered_nac, filtered_nacv, qtype
