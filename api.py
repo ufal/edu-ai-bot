@@ -73,6 +73,8 @@ def apply_qa(query, context=None, exact=False):
 
 @app.route('/', methods=['POST'])
 def ask():
+    if not request.json or 'q' not in request.json:
+        return "No query given.", 400
     query = request.json['q']
     exact = request.json.get('exact')
     context, response, title, url = apply_qa(query, None, exact)
@@ -108,8 +110,9 @@ if __name__ == '__main__':
     ap = ArgumentParser()
     ap.add_argument('-p', '--port', type=int, default=8200, help="Port to listen on.")
     ap.add_argument('-l', '--logfile', type=str, help='Path to a file to log requests')
+    ap.add_argument('-d', '--debug', '--flask-debug', action='store_true', help='Show flask debug messages')
     args = ap.parse_args()
     if args.logfile:
         LOGFILE_PATH = args.logfile
 
-    app.run(host='0.0.0.0', port=args.port)
+    app.run(host='0.0.0.0', port=args.port, debug=args.debug)
