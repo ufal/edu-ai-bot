@@ -8,6 +8,7 @@ from argparse import ArgumentParser
 import flask
 from flask import request, jsonify
 from solr_query import ask_solr, filter_query
+from chitchat_query import ask_chitchat
 from logzero import logger
 
 app = flask.Flask(__name__)
@@ -79,7 +80,8 @@ def ask():
     exact = request.json.get('exact')
     context, response, title, url = apply_qa(query, None, exact)
     if not response and not context:
-        res = {'a': 'Toto bohužel nevím.'}
+        response = ask_chitchat(query)
+        res = {'a': response}
     else:
         if 'wikipedia' in url:
             url = 'https://cs.wikipedia.org/wiki/' + title.replace(' ', '_')
