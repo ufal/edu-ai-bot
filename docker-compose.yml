@@ -1,0 +1,10 @@
+version: '3.3'
+
+services:
+    solr:
+        container_name: qa_solr
+        image: solr:8.11.1
+        volumes:
+            - /var/edubot/qa-solr:/var/solr
+        ports: # TODO: Remove after debugging                
+            - 8984:8983
