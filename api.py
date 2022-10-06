@@ -5,18 +5,19 @@ import datetime
 import json
 from argparse import ArgumentParser
 
+import torch
 import flask
 from flask import request, jsonify
 from solr_query import ask_solr, filter_query
 from chitchat_query import ask_chitchat
 from logzero import logger
 
+from educlf import IntentClassifierModel
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 
 QA_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'multilingual_qaqg')
 LOGFILE_PATH = None  # can be set in parameters
-
 if os.path.isdir(QA_MODEL_PATH):
     from multilingual_qaqg.mlpipelines import pipeline
     qa_model = pipeline("multitask-qa-qg",
@@ -26,6 +27,9 @@ else:
     logger.warn('Could not find QA directory, will run without it')
     qa_model = None
 
+device = torch.device('cpu:0')
+intent_clf_model = IntentClassifierModel(None, device, None, None)
+intent_clf_model.load_from('/home/hudecek/hudecek-troja/educlf/trained-intent-clf-v1')
 
 def apply_qa(query, context=None, exact=False):
 
@@ -78,6 +82,7 @@ def ask():
         return "No query given.", 400
     query = request.json['q']
     exact = request.json.get('exact')
+    detected_intent = intent_clf_model.predict_example(query)
     context, response, title, url = apply_qa(query, None, exact)
     if not response and not context:
         response = ask_chitchat(query)
@@ -91,6 +96,7 @@ def ask():
                 res = {'a': f'Tohle by vám mohlo pomoct: {context} (Zdroj: {url})'}
         else:
             res = {'a': f'{context} (Zdroj: {url})'}
+    res['detected_intent'] = detected_intent
 
     # file logging
     if LOGFILE_PATH:
