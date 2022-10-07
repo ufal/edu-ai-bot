@@ -8,16 +8,18 @@ from argparse import ArgumentParser
 import torch
 import flask
 from flask import request, jsonify
-from solr_query import ask_solr, filter_query
-from chitchat_query import ask_chitchat
+from solr_query import ask_solr, filter_query, ask_chitchat, correct_diacritics
 from logzero import logger
 
-from educlf import IntentClassifierModel
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 
+CHITCHAT_INTENTS = ['bye', 'dik', 'wellcome']
+INTENT_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'educlf', 'trained_model')
 QA_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'multilingual_qaqg')
 LOGFILE_PATH = None  # can be set in parameters
+
+
 if os.path.isdir(QA_MODEL_PATH):
     from multilingual_qaqg.mlpipelines import pipeline
     qa_model = pipeline("multitask-qa-qg",
@@ -27,9 +29,14 @@ else:
     logger.warn('Could not find QA directory, will run without it')
     qa_model = None
 
-device = torch.device('cpu:0')
-intent_clf_model = IntentClassifierModel(None, device, None, None)
-intent_clf_model.load_from('/home/hudecek/hudecek-troja/educlf/trained-intent-clf-v1')
+if os.path.isdir(INTENT_MODEL_PATH):
+    from educlf.educlf.model import IntentClassifierModel
+    intent_clf_model = IntentClassifierModel(None, torch.device('cpu:0'), None, None)
+    intent_clf_model.load_from(INTENT_MODEL_PATH)
+else:
+    logger.warn('Could not find intent model directory, will run without intent model.')
+    intent_clf_model = None
+
 
 def apply_qa(query, context=None, exact=False):
 
@@ -80,10 +87,15 @@ def apply_qa(query, context=None, exact=False):
 def ask():
     if not request.json or 'q' not in request.json:
         return "No query given.", 400
-    query = request.json['q']
+    logger.info(f"Query: {request.json['q']}")
+    query = correct_diacritics(request.json['q'])
+    logger.info(f"Korektor: {query}")
     exact = request.json.get('exact')
-    detected_intent = intent_clf_model.predict_example(query)
-    context, response, title, url = apply_qa(query, None, exact)
+    context, response, title, url = None, None, None, None
+    intent = intent_clf_model.predict_example(query)[0] if intent_clf_model else None
+    logger.info(f"Intent: {intent}")
+    if intent not in CHITCHAT_INTENTS:
+        context, response, title, url = apply_qa(query, None, exact)
     if not response and not context:
         response = ask_chitchat(query)
         res = {'a': response}
@@ -96,7 +108,7 @@ def ask():
                 res = {'a': f'Tohle by vám mohlo pomoct: {context} (Zdroj: {url})'}
         else:
             res = {'a': f'{context} (Zdroj: {url})'}
-    res['detected_intent'] = detected_intent
+    res['intent'] = intent
 
     # file logging
     if LOGFILE_PATH:
@@ -106,7 +118,9 @@ def ask():
                                 'json': request.json},
                     'response': {'text': res,
                                  'url': url,
-                                 'context': context}}
+                                 'context': context,
+                                 'intent': intent,
+                                 'korektor': query}}
         with open(LOGFILE_PATH, 'a', encoding='UTF_8') as fh:
             fh.write(json.dumps(log_data, ensure_ascii=False) + "\n")
             fh.flush()

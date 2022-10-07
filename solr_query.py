@@ -6,8 +6,10 @@ from logzero import logger
 from werkzeug.urls import url_fix
 from utils import dotdict
 
-URL_TO_SOLR = "http://quest.ms.mff.cuni.cz/namuddis/qasolr/wiki_test/query?q={query}&wt=json&fl=title,first_paragraph,url,score"
-URL_TO_UDPIPE = "http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer&tagger&data={query}"
+URL_SOLR = "http://quest.ms.mff.cuni.cz/namuddis/qasolr/wiki_test/query?q={query}&wt=json&fl=title,first_paragraph,url,score"
+URL_UDPIPE = "http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer&tagger&data={query}"
+URL_CHITCHAT = 'http://localhost:8200'
+URL_KOREKTOR = "http://lindat.mff.cuni.cz/services/korektor/api/correct"
 
 
 def ask_solr(*, query, attrib=None, source='wiki'):
@@ -21,7 +23,7 @@ def ask_solr(*, query, attrib=None, source='wiki'):
             query = f'{attrib}:{query}'
     query = f'({query}) AND url:{url}'
     response = requests.get(
-        url_fix(URL_TO_SOLR.format(query=query))
+        url_fix(URL_SOLR.format(query=query))
     )
     j = json.loads(response.content.decode('utf8'))['response']
     logger.debug(query + "\n" + str(j))
@@ -37,7 +39,7 @@ STOP_WORDS = set([
 
 def filter_query(query):
     try:
-        udpipe = requests.get(url_fix(URL_TO_UDPIPE.format(query=query)))
+        udpipe = requests.get(url_fix(URL_UDPIPE.format(query=query)))
         tagged = [line.split("\t") for line in udpipe.json()['result'].split("\n")
                   if "\t" in line and not line.startswith('#')]
         tagged = [dotdict({'form': w[1], 'lemma': w[2], 'tag': w[4]}) for w in tagged]
@@ -57,3 +59,20 @@ def filter_query(query):
     elif tagged[0].lemma == 'proč':
         qtype = 'why'
     return filtered_nac, filtered_nacv, qtype
+
+
+def correct_diacritics(text: str):
+    r = requests.post(URL_KOREKTOR, {'data': text, 'model': 'czech-diacritics_generator'})
+    return r.json()['result']
+
+
+def ask_chitchat(query):
+    logger.info('Request "%s" at %s' % (query, URL_CHITCHAT))
+    resp = requests.post(URL_CHITCHAT, json={'q': query})
+    try:
+        reply = resp.json()['a'].strip()
+        logger.info('Reply: "%s"' % reply)
+        return reply
+    except Exception as e:
+        logger.error(str(e))
+        return 'Toto bohužel nevím.'
