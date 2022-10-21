@@ -14,7 +14,7 @@ from logzero import logger
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 
-CHITCHAT_INTENTS = ['bye', 'dik', 'wellcome']
+CHITCHAT_INTENTS = ['bye', 'dik', 'wellcome', 'chch']
 INTENT_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'educlf', 'trained_model')
 QA_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'multilingual_qaqg')
 LOGFILE_PATH = None  # can be set in parameters
