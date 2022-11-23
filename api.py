@@ -3,10 +3,13 @@
 import os
 import datetime
 import json
+import random
 from argparse import ArgumentParser
 
 import torch
 import flask
+import yaml
+from yaml.loader import SafeLoader
 from flask import request, jsonify
 from solr_query import ask_solr, filter_query, ask_chitchat, correct_diacritics
 from logzero import logger
@@ -14,11 +17,11 @@ from logzero import logger
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 
-CHITCHAT_INTENTS = ['bye', 'dik', 'wellcome', 'chch']
+CHITCHAT_INTENTS = ['chch']
 INTENT_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'educlf', 'trained_model')
+HC_RESPONSES_PATH = 'data/handcrafted_responses.yml'
 QA_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'multilingual_qaqg')
 LOGFILE_PATH = None  # can be set in parameters
-
 
 if os.path.isdir(QA_MODEL_PATH):
     from multilingual_qaqg.mlpipelines import pipeline
@@ -36,10 +39,13 @@ if os.path.isdir(INTENT_MODEL_PATH):
 else:
     logger.warn('Could not find intent model directory, will run without intent model.')
     intent_clf_model = None
-
+if not os.path.exists(HC_RESPONSES_PATH):
+    handcrafted_responses = dict()
+else:
+    with open(HC_RESPONSES_PATH, 'rt') as fd:
+        handcrafted_responses = yaml.load(fd, Loader=SafeLoader)
 
 def apply_qa(query, context=None, exact=False):
-
     filtered_query_nac, filtered_query_nacv, query_type = filter_query(query)
     logger.info(f'Q: {query} | F: {filtered_query_nac} | {filtered_query_nacv}')
     if not context and filtered_query_nacv:
@@ -91,32 +97,40 @@ def ask():
     query = correct_diacritics(request.json['q'])
     logger.info(f"Korektor: {query}")
     exact = request.json.get('exact')
-    context, response, title, url = None, None, None, None
+    context, title, url = None, None, None
     intent = intent_clf_model.predict_example(query)[0] if intent_clf_model else None
     logger.info(f"Intent: {intent}")
-    if intent not in CHITCHAT_INTENTS:
-        context, response, title, url = apply_qa(query, None, exact)
-    if not response and not context:
-        response = ask_chitchat(query)
-        res = {'a': response}
-    else:
-        if 'wikipedia' in url:
-            url = 'https://cs.wikipedia.org/wiki/' + title.replace(' ', '_')
-            if response:
-                res = {'a': f'Myslím, že {response} (Zdroj: {url})'}
-            else:
-                res = {'a': f'Tohle by vám mohlo pomoct: {context} (Zdroj: {url})'}
-        else:
-            res = {'a': f'{context} (Zdroj: {url})'}
-    res['intent'] = intent
 
+    if intent in CHITCHAT_INTENTS:
+        response = ask_chitchat(query)
+    elif intent in handcrafted_responses:
+        available_responses = handcrafted_responses[intent]
+        response = random.choice(available_responses)
+    else:
+        context, retrieved_response, title, url = apply_qa(query, None, exact)
+        if not retrieved_response and not context:
+            response = 'Promiňte, teď jsem nerozuměl.'
+        else:
+            if 'wikipedia' in url:
+                url = 'https://cs.wikipedia.org/wiki/' + title.replace(' ', '_')
+                if retrieved_response:
+                    response = f'Myslím, že {retrieved_response} (Zdroj: {url})'
+                else:
+                    response = f'Tohle by vám mohlo pomoct: {context} (Zdroj: {url})'
+            else:
+                response = f'{context} (Zdroj: {url})'
+
+    response_dict = {
+        'a': response,
+        'intent': intent
+    }
     # file logging
     if LOGFILE_PATH:
         log_data = {'timestamp': str(datetime.datetime.now()),
                     'request': {'remote_addr': request.remote_addr,
                                 'url': request.url,
                                 'json': request.json},
-                    'response': {'text': res,
+                    'response': {'text': response_dict,
                                  'url': url,
                                  'context': context,
                                  'intent': intent,
@@ -125,7 +139,7 @@ def ask():
             fh.write(json.dumps(log_data, ensure_ascii=False) + "\n")
             fh.flush()
 
-    return jsonify(res)
+    return jsonify(response_dict)
 
 
 if __name__ == '__main__':
