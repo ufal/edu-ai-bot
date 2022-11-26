@@ -14,14 +14,17 @@ from flask import request, jsonify
 from solr_query import ask_solr, filter_query, ask_chitchat, correct_diacritics
 from logzero import logger
 
+
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
+
 
 CHITCHAT_INTENTS = ['chch']
 INTENT_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'educlf', 'trained_model')
 HC_RESPONSES_PATH = 'data/handcrafted_responses.yml'
 QA_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'multilingual_qaqg')
 LOGFILE_PATH = None  # can be set in parameters
+
 
 if os.path.isdir(QA_MODEL_PATH):
     from multilingual_qaqg.mlpipelines import pipeline
@@ -40,10 +43,12 @@ else:
     logger.warn('Could not find intent model directory, will run without intent model.')
     intent_clf_model = None
 if not os.path.exists(HC_RESPONSES_PATH):
+    logger.warn('Could not find handcrafted responses, will run without them.')
     handcrafted_responses = dict()
 else:
     with open(HC_RESPONSES_PATH, 'rt') as fd:
         handcrafted_responses = yaml.load(fd, Loader=SafeLoader)
+
 
 def apply_qa(query, context=None, exact=False):
     filtered_query_nac, filtered_query_nacv, query_type = filter_query(query)
