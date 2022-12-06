@@ -24,7 +24,7 @@ class RemoteServiceHandler:
                 query = f'{attrib}:{query}'
         query = f'({query}) AND url:{url}'
         response = requests.get(
-            url_fix(self.urls['URL_SOLR'].format(query=query))
+            url_fix(self.urls['SOLR'].format(query=query))
         )
         j = json.loads(response.content.decode('utf8'))['response']
         logger.debug(query + "\n" + str(j))
@@ -33,7 +33,7 @@ class RemoteServiceHandler:
 
     def filter_query(self, query):
         try:
-            udpipe = requests.get(url_fix(self.urls['URL_UDPIPE'].format(query=query)))
+            udpipe = requests.get(url_fix(self.urls['UDPIPE'].format(query=query)))
             tagged = [line.split("\t") for line in udpipe.json()['result'].split("\n")
                       if "\t" in line and not line.startswith('#')]
             tagged = [dotdict({'form': w[1], 'lemma': w[2], 'tag': w[4]}) for w in tagged]
@@ -55,12 +55,12 @@ class RemoteServiceHandler:
         return filtered_nac, filtered_nacv, qtype
 
     def correct_diacritics(self, text: str):
-        r = requests.post(self.urls['URL_KOREKTOR'], {'data': text, 'model': 'czech-diacritics_generator'})
+        r = requests.post(self.urls['KOREKTOR'], {'data': text, 'model': 'czech-diacritics_generator'})
         return r.json()['result']
 
     def ask_chitchat(self, query):
-        logger.info('Request "%s" at %s' % (query, self.urls['URL_CHITCHAT']))
-        resp = requests.post(self.urls['URL_CHITCHAT'], json={'q': query})
+        logger.info('Request "%s" at %s' % (query, self.urls['CHITCHAT']))
+        resp = requests.post(self.urls['CHITCHAT'], json={'q': query})
         try:
             reply = resp.json()['a'].strip()
             logger.info('Reply: "%s"' % reply)

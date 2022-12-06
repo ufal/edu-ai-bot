@@ -23,7 +23,6 @@ app.config["DEBUG"] = True
 
 @app.route('/', methods=['POST'])
 def ask():
-    print(handcrafted_responses)
     if not request.json or 'q' not in request.json:
         return "No query given.", 400
     logger.info(f"Query: {request.json['q']}")

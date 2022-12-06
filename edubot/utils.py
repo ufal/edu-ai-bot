@@ -1,18 +1,18 @@
-from typing import Text, List, Tuple, Dict
+from typing import Text, Iterable, Tuple, Dict, Any, List
 from logzero import logger
 from scipy.spatial.distance import cosine
 
 
-def rank_utterance_list_by_similarity(model, reference: Text, candidates: List[Tuple[Text, Dict[Text, Text]]])\
+def rank_utterance_list_by_similarity(model, reference: Text, candidates: Iterable[Tuple[Text, Any]])\
         -> List[Tuple[float,  Dict[Text, Text]]]:
     """
     :param model: Model used for sentence representations
     :param reference: The reference text
-    :param candidates: List of tuples (keytext, Any), keytext is used for sorting
+    :param candidates: Iterable of tuples (keytext, Any), keytext is used for sorting
     :return: sorted candidates list along with zipped distances. The keys used for representation aren't returned.
     """
     reference_repr = model.encode(reference)
-    candidates_repr = [model.encode(c[0]) for c in candidates]
+    candidates_repr = (model.encode(c[0]) for c in candidates)
     distances = [(cosine(reference_repr, cr), c[1]) for cr, c in zip(candidates_repr, candidates)]
     return sorted(distances, key=lambda c: c[0] )
 
@@ -44,7 +44,7 @@ def apply_qa(remote_service_handler, qa_model, repr_model, query, context=None, 
 
         ranked_answers = rank_utterance_list_by_similarity(repr_model,
                                                            query,
-                                                           [(a['first_paragraph'], a) for a in answers])
+                                                           ((a['first_paragraph'], a) for a in answers))
         print('RANKED')
         for a in ranked_answers:
             print(a)
