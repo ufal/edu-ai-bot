@@ -40,7 +40,12 @@ def ask():
         available_responses = handcrafted_responses[intent]
         response = random.choice(available_responses)
     else:
-        context, retrieved_response, title, url = apply_qa(remote_service_handler, qa_model, query, None, exact)
+        context, retrieved_response, title, url = apply_qa(remote_service_handler,
+                                                           qa_model,
+                                                           sentence_repr_model,
+                                                           query,
+                                                           context=None,
+                                                           exact=exact)
         if not retrieved_response and not context:
             response = 'Promiňte, teď jsem nerozuměl.'
         else:
@@ -118,4 +123,12 @@ if __name__ == '__main__':
         with open(custom_config['HC_RESPONSES_PATH'], 'rt') as fd:
             handcrafted_responses = yaml.load(fd, Loader=SafeLoader)
 
+    if custom_config['SENTENCE_REPR_MODEL'].lower() in ['robeczech', 'eleczech']:
+        sentence_repr_model = IntentClassifierModel(custom_config['SENTENCE_REPR_MODEL'],
+                                                    torch.device('cpu:0'),
+                                                    label_mapping=None,
+                                                    out_dir=None)
+    else:
+        from sentence_transformers import SentenceTransformer
+        sentence_repr_model = SentenceTransformer(custom_config['SENTENCE_REPR_MODEL'])
     app.run(host=args.host_addr, port=args.port, debug=args.debug)

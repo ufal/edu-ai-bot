@@ -61,7 +61,6 @@ class IntentClassifierModel:
 
     @staticmethod
     def _load_model_from_desc(model_description, device, label_mapping):
-        model_cls = AutoModel
         if model_description == 'robeczech':
             model_description = 'ufal/robeczech-base'
             model_cls = RobertaForSequenceClassification

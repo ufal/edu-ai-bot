@@ -1,6 +1,23 @@
+from typing import Text, List, Tuple, Dict
 from logzero import logger
+from scipy.spatial.distance import cosine
 
-def apply_qa(remote_service_handler, qa_model, query, context=None, exact=False):
+
+def rank_utterance_list_by_similarity(model, reference: Text, candidates: List[Tuple[Text, Dict[Text, Text]]])\
+        -> List[Tuple[float,  Dict[Text, Text]]]:
+    """
+    :param model: Model used for sentence representations
+    :param reference: The reference text
+    :param candidates: List of tuples (keytext, Any), keytext is used for sorting
+    :return: sorted candidates list along with zipped distances. The keys used for representation aren't returned.
+    """
+    reference_repr = model.encode(reference)
+    candidates_repr = [model.encode(c[0]) for c in candidates]
+    distances = [(cosine(reference_repr, cr), c[1]) for cr, c in zip(candidates_repr, candidates)]
+    return sorted(distances, key=lambda c: c[0] )
+
+
+def apply_qa(remote_service_handler, qa_model, repr_model, query, context=None, exact=False):
     filtered_query_nac, filtered_query_nacv, query_type = remote_service_handler.filter_query(query)
     logger.info(f'Q: {query} | F: {filtered_query_nac} | {filtered_query_nacv}')
     if not context and filtered_query_nacv:
@@ -24,24 +41,25 @@ def apply_qa(remote_service_handler, qa_model, query, context=None, exact=False)
         logger.debug("\n" + "\n".join([f'D: {doc["title"]}/{doc["score"]}' for doc in db_result['docs']]))
 
         answers = db_result['docs']
-        title = answers[0]["title"]
+
+        ranked_answers = rank_utterance_list_by_similarity(repr_model,
+                                                           query,
+                                                           [(a['first_paragraph'], a) for a in answers])
+        print('RANKED')
+        for a in ranked_answers:
+            print(a)
+        distance, chosen_answer = ranked_answers[0]
+        title = chosen_answer["title"]
     else:
-        answers = [{'first_paragraph': None, 'url': None}]
+        chosen_answer = {'first_paragraph': None, 'url': None}
         title = None
 
     if exact and query_type == 'default' and qa_model:
-        # reranking by QA decoding score -- doesn't seem to work
-        #resp_cands = []
-        #for context in [a['first_paragraph'] for a in answers[:1]]:
-            #resp_cands.append(qa_model({'question': query, 'context': context}))
-        #logger.debug('RCs:\n' + "\n".join(['RC: %s | %f' % rc for rc in resp_cands]))
-        #response, _ = max(resp_cands, key=lambda rc: rc[1])
-        # feeding multiple contexts -- doesn't seem to work
         if not context:
-            context = "\n".join([a['first_paragraph'] for a in answers[:1]])
+            context = chosen_answer['first_paragraph']
         response, _ = qa_model({'question': query, 'context': context})
-        return context, response, title, answers[0]["url"]
-    return answers[0]["first_paragraph"], None, title, answers[0]["url"]
+        return context, response, title, chosen_answer["url"]
+    return chosen_answer["first_paragraph"], None, title, chosen_answer["url"]
 
 
 class dotdict(dict):
