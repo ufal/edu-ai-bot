@@ -88,8 +88,8 @@ if __name__ == '__main__':
     if args.logfile:
         custom_config['LOGFILE_PATH'] = args.logfile
 
-    stopwords = {'co', 'kdo', 'kdy', 'kde', 'jak', 'kolik', 'být', 'ten', '?', '.', ':', '!', 'znamenat',
-                 'jaký', 'který', 'mít', 'proč'}
+    with open(custom_config['STOPWORDS_PATH'], 'rt') as fd:
+        stopwords = set((w.strip() for w in fd.readlines() if len(w.strip()) > 0 ))
     remote_service_handler = RemoteServiceHandler(custom_config, stopwords)
 
     if os.path.isdir(custom_config['QA_MODEL_PATH']):

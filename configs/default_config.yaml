@@ -9,6 +9,7 @@ QA_MODEL_PATH: "multilingual_qaqg"
 HC_RESPONSES_PATH: "data/handcrafted_responses.yml"
 INTENT_MODEL_PATH: "os.path.join(os.path.dirname(__file__), 'edubot/educlf', 'trained_model')"
 LOGFILE_PATH: None
+STOPWORDS_PATH: "data/stopwords.txt"
 CHITCHAT_INTENTS:
     - "chch"
 
