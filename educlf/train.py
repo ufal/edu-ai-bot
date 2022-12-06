@@ -47,7 +47,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_fn', type=str)
-    parser.add_argument('--model', type=str, default='roberta')
+    parser.add_argument('--model', type=str, default='robeczech')
     parser.add_argument('--out_dir', type=str)
     args = parser.parse_args()
     main(args)
