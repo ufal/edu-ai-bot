@@ -1,0 +1,17 @@
+URLs:
+    URL_SOLR: "http://quest.ms.mff.cuni.cz/namuddis/qasolr/wiki_test/query?q={query}&wt=json&fl=title,first_paragraph,url,score"
+    URL_UDPIPE: "http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer&tagger&data={query}"
+    URL_CHITCHAT: "http://localhost:8200"
+    URL_KOREKTOR: "http://lindat.mff.cuni.cz/services/korektor/api/correct"
+    WIKI: "https?//cs.wikipedia.org*"
+    LOGIC: "https?//www.logickaolympiada.cz*"
+QA_MODEL_PATH: "multilingual_qaqg"
+HC_RESPONSES_PATH: "data/handcrafted_responses.yml"
+INTENT_MODEL_PATH: "os.path.join(os.path.dirname(__file__), 'edubot/educlf', 'trained_model')"
+LOGFILE_PATH: None
+CHITCHAT_INTENTS:
+    - "chch"
+
+
+
+
