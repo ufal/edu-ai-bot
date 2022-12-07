@@ -1,9 +1,10 @@
+import sys
+sys.path.append('../')
 from argparse import ArgumentParser
 from logzero import logger
 import logzero
-from eval import DataParser
-
-from api import apply_qa
+from edubot.eval import DataParser
+from edubot.utils import apply_qa
 
 
 def run_on_data(data):

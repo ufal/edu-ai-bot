@@ -1,24 +1,14 @@
 import argparse
-import json
 
 import datasets
 import torch
 import numpy
 
-from scipy.spatial.distance import cosine
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 
 from .dataset import load_data
 from .model import IntentClassifierModel
-from sentence_transformers import SentenceTransformer
-
-
-def rank_list(model, reference, candidates):
-    reference_repr = model.encode(reference)
-    candidates_repr = [model.encode(c) for c in candidates]
-    distances = [(cosine(reference_repr, cr), c) for cr, c in zip(candidates_repr, candidates)]
-    return sorted(distances, key=lambda c: c[0] )
 
 
 def main(args):
@@ -47,7 +37,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_fn', type=str)
-    parser.add_argument('--model', type=str, default='roberta')
+    parser.add_argument('--model', type=str, default='robeczech')
     parser.add_argument('--out_dir', type=str)
     args = parser.parse_args()
     main(args)
