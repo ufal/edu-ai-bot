@@ -1,5 +1,5 @@
 URLs:
-    USOLR: "http://quest.ms.mff.cuni.cz/namuddis/qasolr/wiki_test/query?q={query}&wt=json&fl=title,first_paragraph,url,score"
+    SOLR: "http://quest.ms.mff.cuni.cz/namuddis/qasolr/wiki_test/query?q={query}&wt=json&fl=title,first_paragraph,url,score"
     UDPIPE: "http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer&tagger&data={query}"
     CHITCHAT: "http://localhost:8200"
     KOREKTOR: "http://lindat.mff.cuni.cz/services/korektor/api/correct"

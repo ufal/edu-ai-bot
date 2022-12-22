@@ -30,8 +30,8 @@ def ask():
     logger.info(f"Korektor: {query}")
     exact = request.json.get('exact')
     context, title, url = None, None, None
-    intent = intent_clf_model.predict_example(query)[0] if intent_clf_model else None
-    logger.info(f"Intent: {intent}")
+    intent, intent_conf = intent_clf_model.predict_example(query)[0] if intent_clf_model else None
+    logger.info(f"Intent: {intent} ({intent_conf})")
 
     if intent in custom_config['CHITCHAT_INTENTS']:
         response = remote_service_handler.ask_chitchat(query)
@@ -82,8 +82,8 @@ def ask():
 if __name__ == '__main__':
     ap = ArgumentParser()
     ap.add_argument('-p', '--port', type=int, default=8200, help="Port to listen on.")
-    ap.add_argument('-ha', '--host_addr', type=str, default='0.0.0.0')
-    ap.add_argument('-c', '--config', type=str, help='Path to yaml configuration file')
+    ap.add_argument('-ha', '--host-addr', type=str, default='0.0.0.0')
+    ap.add_argument('-c', '--config', type=str, help='Path to yaml configuration file', required=True)
     ap.add_argument('-l', '--logfile', type=str, help='Path to a file to log requests')
     ap.add_argument('-d', '--debug', '--flask-debug', action='store_true', help='Show flask debug messages')
     args = ap.parse_args()
@@ -129,5 +129,6 @@ if __name__ == '__main__':
                                                     out_dir=None)
     else:
         from sentence_transformers import SentenceTransformer
-        sentence_repr_model = SentenceTransformer(custom_config['SENTENCE_REPR_MODEL'])
+        sentence_repr_model = SentenceTransformer(custom_config['SENTENCE_REPR_MODEL'],
+                                                  device=torch.device('cpu:0'))
     app.run(host=args.host_addr, port=args.port, debug=args.debug)
