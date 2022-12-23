@@ -14,7 +14,7 @@ def rank_utterance_list_by_similarity(model, reference: Text, candidates: Iterab
     reference_repr = model.encode(reference)
     candidates_repr = (model.encode(c[0]) for c in candidates)
     distances = [(cosine(reference_repr, cr), c[1]) for cr, c in zip(candidates_repr, candidates)]
-    return sorted(distances, key=lambda c: c[0] )
+    return sorted(distances, key=lambda c: c[0])
 
 
 def apply_qa(remote_service_handler, qa_model, repr_model, query, context=None, exact=False):
@@ -44,10 +44,7 @@ def apply_qa(remote_service_handler, qa_model, repr_model, query, context=None, 
 
         ranked_answers = rank_utterance_list_by_similarity(repr_model,
                                                            query,
-                                                           ((a['first_paragraph'], a) for a in answers))
-        print('RANKED')
-        for a in ranked_answers:
-            print(a)
+                                                           [(a['first_paragraph'], a) for a in answers])
         distance, chosen_answer = ranked_answers[0]
         title = chosen_answer["title"]
     else:
