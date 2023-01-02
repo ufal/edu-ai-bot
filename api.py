@@ -86,6 +86,10 @@ if __name__ == '__main__':
     ap.add_argument('-c', '--config', type=str, help='Path to yaml configuration file', required=True)
     ap.add_argument('-l', '--logfile', type=str, help='Path to a file to log requests')
     ap.add_argument('-d', '--debug', '--flask-debug', action='store_true', help='Show flask debug messages')
+    ap.add_argument('--cuda', action='store_true', help='Use GPU (true by default)')
+    ap.add_argument('--no-cuda', dest='cuda', action='store_false')
+    ap.set_defaults(cuda=True)
+
     args = ap.parse_args()
     with open(args.config, 'rt') as fd:
         custom_config = yaml.load(fd, Loader=SafeLoader)
@@ -101,7 +105,8 @@ if __name__ == '__main__':
 
         qa_model = pipeline("multitask-qa-qg",
                             os.path.join(custom_config['QA_MODEL_PATH'], "checkpoint-185000"),
-                            os.path.join(custom_config['QA_MODEL_PATH'], "mt5_qg_tokenizer"))
+                            os.path.join(custom_config['QA_MODEL_PATH'], "mt5_qg_tokenizer"),
+                            use_cuda=args.cuda)
     else:
         logger.warn('Could not find QA directory, will run without it')
         qa_model = None

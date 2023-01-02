@@ -13,7 +13,3 @@ LOGFILE_PATH: None
 STOPWORDS_PATH: "data/stopwords.txt"
 CHITCHAT_INTENTS:
     - "chch"
-
-
-
-
