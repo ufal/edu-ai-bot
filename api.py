@@ -120,13 +120,13 @@ if __name__ == '__main__':
     if custom_config['SENTENCE_REPR_MODEL'].lower() in ['robeczech', 'eleczech']:
         from edubot.educlf.model import IntentClassifierModel
         sentence_repr_model = IntentClassifierModel(custom_config['SENTENCE_REPR_MODEL'],
-                                                    torch.device('cpu:0'),
+                                                    device,
                                                     label_mapping=None,
                                                     out_dir=None)
     else:
         from sentence_transformers import SentenceTransformer
         sentence_repr_model = SentenceTransformer(custom_config['SENTENCE_REPR_MODEL'],
-                                                  device=torch.device('cpu:0'))
+                                                  device=device)
     qa_handler = QAHandler(qa_model, sentence_repr_model, remote_service_handler)
 
     # load chitchat
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     if os.path.isdir(custom_config['INTENT_MODEL_PATH']):
         from edubot.educlf.model import IntentClassifierModel
 
-        intent_clf_model = IntentClassifierModel(None, torch.device('cpu:0'), None, None)
+        intent_clf_model = IntentClassifierModel(None, device, None, None)
         intent_clf_model.load_from(custom_config['INTENT_MODEL_PATH'])
     else:
         logger.warn('Could not find intent model directory, will run without intent model.')
