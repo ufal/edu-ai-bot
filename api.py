@@ -14,7 +14,8 @@ from flask import request, jsonify
 from logzero import logger
 
 from edubot.remote_services import RemoteServiceHandler
-from edubot.utils import apply_qa
+from edubot.qa import QAHandler
+from edubot.chitchat import ChitchatHandler, DummyChitchatHandler
 
 
 app = flask.Flask(__name__)
@@ -26,25 +27,22 @@ def ask():
     if not request.json or 'q' not in request.json:
         return "No query given.", 400
     logger.info(f"Query: {request.json['q']}")
+
     query = remote_service_handler.correct_diacritics(request.json['q'])
     logger.info(f"Korektor: {query}")
+
     exact = request.json.get('exact')
     context, title, url = None, None, None
     intent, intent_conf = intent_clf_model.predict_example(query)[0] if intent_clf_model else None
     logger.info(f"Intent: {intent} ({intent_conf})")
 
     if intent in custom_config['CHITCHAT_INTENTS']:
-        response = remote_service_handler.ask_chitchat(query)
+        response = chitchat_handler.ask_chitchat(query, "")  # TODO not handling history at the moment
     elif intent in handcrafted_responses:
         available_responses = handcrafted_responses[intent]
         response = random.choice(available_responses)
     else:
-        context, retrieved_response, title, url = apply_qa(remote_service_handler,
-                                                           qa_model,
-                                                           sentence_repr_model,
-                                                           query,
-                                                           context=None,
-                                                           exact=exact)
+        context, retrieved_response, title, url = qa_handler.apply_qa(query, context=None, exact=exact)
         if not retrieved_response and not context:
             response = 'Promiňte, teď jsem nerozuměl.'
         else:
@@ -80,6 +78,7 @@ def ask():
 
 
 if __name__ == '__main__':
+
     ap = ArgumentParser()
     ap.add_argument('-p', '--port', type=int, default=8200, help="Port to listen on.")
     ap.add_argument('-ha', '--host-addr', type=str, default='0.0.0.0')
@@ -91,15 +90,22 @@ if __name__ == '__main__':
     ap.set_defaults(cuda=True)
 
     args = ap.parse_args()
+
+    # get config
     with open(args.config, 'rt') as fd:
         custom_config = yaml.load(fd, Loader=SafeLoader)
     if args.logfile:
         custom_config['LOGFILE_PATH'] = args.logfile
 
+    # set default device based on CUDA config
+    device = torch.device('cuda') if args.cuda and torch.cuda.is_available() else torch.device('cpu:0')
+
+    # load remote services handler
     with open(custom_config['STOPWORDS_PATH'], 'rt') as fd:
-        stopwords = set((w.strip() for w in fd.readlines() if len(w.strip()) > 0 ))
+        stopwords = set((w.strip() for w in fd.readlines() if len(w.strip()) > 0))
     remote_service_handler = RemoteServiceHandler(custom_config, stopwords)
 
+    # load QA
     if os.path.isdir(custom_config['QA_MODEL_PATH']):
         from multilingual_qaqg.mlpipelines import pipeline
 
@@ -111,6 +117,28 @@ if __name__ == '__main__':
         logger.warn('Could not find QA directory, will run without it')
         qa_model = None
 
+    if custom_config['SENTENCE_REPR_MODEL'].lower() in ['robeczech', 'eleczech']:
+        from edubot.educlf.model import IntentClassifierModel
+        sentence_repr_model = IntentClassifierModel(custom_config['SENTENCE_REPR_MODEL'],
+                                                    torch.device('cpu:0'),
+                                                    label_mapping=None,
+                                                    out_dir=None)
+    else:
+        from sentence_transformers import SentenceTransformer
+        sentence_repr_model = SentenceTransformer(custom_config['SENTENCE_REPR_MODEL'],
+                                                  device=torch.device('cpu:0'))
+    qa_handler = QAHandler(qa_model, sentence_repr_model, remote_service_handler)
+
+    # load chitchat
+    if custom_config.get('CHITCHAT', {'MODEL': None})['MODEL']:
+        chitchat_handler = ChitchatHandler(custom_config['CHITCHAT'],
+                                           remote_service_handler,
+                                           device)
+    else:
+        logger.warn('No chitchat model defined, will run without it')
+        chitchat_handler = DummyChitchatHandler()
+
+    # load intent classifier
     if os.path.isdir(custom_config['INTENT_MODEL_PATH']):
         from edubot.educlf.model import IntentClassifierModel
 
@@ -120,6 +148,7 @@ if __name__ == '__main__':
         logger.warn('Could not find intent model directory, will run without intent model.')
         intent_clf_model = None
 
+    # load handcrafted responses
     if not os.path.exists(custom_config['HC_RESPONSES_PATH']):
         logger.warn('Could not find handcrafted responses, will run without them.')
         handcrafted_responses = dict()
@@ -127,13 +156,5 @@ if __name__ == '__main__':
         with open(custom_config['HC_RESPONSES_PATH'], 'rt') as fd:
             handcrafted_responses = yaml.load(fd, Loader=SafeLoader)
 
-    if custom_config['SENTENCE_REPR_MODEL'].lower() in ['robeczech', 'eleczech']:
-        sentence_repr_model = IntentClassifierModel(custom_config['SENTENCE_REPR_MODEL'],
-                                                    torch.device('cpu:0'),
-                                                    label_mapping=None,
-                                                    out_dir=None)
-    else:
-        from sentence_transformers import SentenceTransformer
-        sentence_repr_model = SentenceTransformer(custom_config['SENTENCE_REPR_MODEL'],
-                                                  device=torch.device('cpu:0'))
+    # run the stuff
     app.run(host=args.host_addr, port=args.port, debug=args.debug)
