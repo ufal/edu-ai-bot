@@ -58,13 +58,12 @@ class RemoteServiceHandler:
         r = requests.post(self.urls['KOREKTOR'], {'data': text, 'model': 'czech-diacritics_generator'})
         return r.json()['result']
 
-    def ask_chitchat(self, query):
-        logger.info('Request "%s" at %s' % (query, self.urls['CHITCHAT']))
-        resp = requests.post(self.urls['CHITCHAT'], json={'q': query})
-        try:
-            reply = resp.json()['a'].strip()
-            logger.info('Reply: "%s"' % reply)
-            return reply
-        except Exception as e:
-            logger.error(str(e))
-            return 'Toto bohužel nevím.'
+    def translate(self, text: str, service: str):
+        r = requests.post(service, data={'input_text': text})
+        return r.content.decode('utf8')
+
+    def translate_en2cs(self, text: str):
+        return self.translate(text, self.urls['LINDAT_EN2CS'])
+
+    def translate_cs2en(self, text: str):
+        return self.translate(text, self.urls['LINDAT_CS2EN'])
