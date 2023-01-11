@@ -1,3 +1,4 @@
+import random
 from collections import defaultdict
 from typing import Text
 from time import time as current_time_seconds
@@ -6,6 +7,7 @@ from abc import ABC
 
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from logzero import logger
+from fuzzywuzzy import fuzz
 
 
 class ContextStorage(ABC):
@@ -74,6 +76,7 @@ class Seq2SeqChitchatHandler(ChitchatHandler):
         # TODO might need to support different classes
         self.tokenizer = AutoTokenizer.from_pretrained(config['MODEL'])
         model = AutoModelForSeq2SeqLM.from_pretrained(config['MODEL'])
+        self.fallback_replies = config['FALLBACK_REPLIES']
         self.device = device
         self.model = model.to(self.device)
         self.decode_params = config['DECODE_PARAMS']
@@ -88,15 +91,36 @@ class Seq2SeqChitchatHandler(ChitchatHandler):
         # run chitchat model
         concat = self.tokenizer.eos_token.join(history + [question]) + self.tokenizer.eos_token
         question = self.tokenizer.encode(concat, return_tensors='pt').to(self.device)
-        reply = self.model.generate(question,
-                                    pad_token_id=self.tokenizer.eos_token_id,
-                                    **self.decode_params)
-        reply = self.tokenizer.decode(reply[0], skip_special_tokens=True)
+        # TODO: look at bad_word_ids
+        # https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.generation_utils.GenerationMixin.generate.bad_words_ids(List[List[int]],
+        reply_candidates = self.model.generate(question,
+                                               pad_token_id=self.tokenizer.eos_token_id,
+                                               num_return_sequences=5,
+                                               **self.decode_params)
+        for candidate in reply_candidates:
+            candidate = self.tokenizer.decode(candidate, skip_special_tokens=True)
+            if not self.is_unappropriate(candidate):
+                reply = candidate
+                break
+            logger.info('Throwing out profane reply: %s', candidate)
+        else:
+            reply = random.choice(self.fallback_replies)
+
         logger.debug(f"ENA: {reply}")
 
         # translate back to CS
         reply = self.remote_service_handler.translate_en2cs(reply)
         return reply
+
+    def is_unappropriate(self, utterance: Text):
+        suspicious_keywords = ['date', 'kill', 'lonely', 'male', 'female',
+                               'attracted', 'sex', 'transsexuality',
+                               'desire', 'sexuality', 'shy', 'girl', 'boy', 'likes me', 'love you',
+                               'girlfriend', 'boyfriend', 'friend', 'kids', 'children',
+                               'wedding', 'married', 'accident', 'crash', 'die', 'dead', 'nigger', 'nigga',
+                               'racist', 'race', 'fuck', 'shit', 'cunt', 'whore', 'bitch', 'use me', 'exploit',
+                               'sucker']
+        return any((fuzz.partial_ratio(utterance.lower(), kw) > 75 for kw in suspicious_keywords))
 
     def _wrap_utterance(self, utterance: Text):
         return f"{utterance.strip()}\n"
