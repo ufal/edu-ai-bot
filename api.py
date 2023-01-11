@@ -15,7 +15,7 @@ from logzero import logger
 
 from edubot.remote_services import RemoteServiceHandler
 from edubot.qa import QAHandler
-from edubot.chitchat import ChitchatHandler, DummyChitchatHandler
+from edubot.chitchat import Seq2SeqChitchatHandler, DummyChitchatHandler
 
 
 app = flask.Flask(__name__)
@@ -28,6 +28,7 @@ def ask():
         return "No query given.", 400
     logger.info(f"Query: {request.json['q']}")
 
+    conv_id = str(request.json.get('conversation_id', 'default_id'))
     query = remote_service_handler.correct_diacritics(request.json['q'])
     logger.info(f"Korektor: {query}")
 
@@ -37,7 +38,7 @@ def ask():
     logger.info(f"Intent: {intent} ({intent_conf})")
 
     if intent in custom_config['CHITCHAT_INTENTS']:
-        response = chitchat_handler.ask_chitchat(query, "")  # TODO not handling history at the moment
+        response = chitchat_handler.ask_chitchat(query, conv_id)
     elif intent in handcrafted_responses:
         available_responses = handcrafted_responses[intent]
         response = random.choice(available_responses)
@@ -131,9 +132,9 @@ if __name__ == '__main__':
 
     # load chitchat
     if custom_config.get('CHITCHAT', {'MODEL': None})['MODEL']:
-        chitchat_handler = ChitchatHandler(custom_config['CHITCHAT'],
-                                           remote_service_handler,
-                                           device)
+        chitchat_handler = Seq2SeqChitchatHandler(custom_config['CHITCHAT'],
+                                                  remote_service_handler,
+                                                  device)
     else:
         logger.warn('No chitchat model defined, will run without it')
         chitchat_handler = DummyChitchatHandler()
