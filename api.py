@@ -5,6 +5,7 @@ import datetime
 import json
 import random
 from argparse import ArgumentParser
+from time import strftime
 
 import torch
 import flask
@@ -42,6 +43,8 @@ def ask():
     elif intent in handcrafted_responses:
         available_responses = handcrafted_responses[intent]
         response = random.choice(available_responses)
+        response = response.replace('timenow()', strftime('%H:%M'))
+        response = response.replace('datenow()', strftime('%d.%m.%Y'))
     else:
         context, retrieved_response, title, url = qa_handler.apply_qa(query, context=None, exact=exact)
         if not retrieved_response and not context:

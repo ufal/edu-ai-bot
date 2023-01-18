@@ -107,7 +107,6 @@ P_spatna_odpoved:
   - Omlouvám se, bohužel i já dělám chyby.
   - Pardon, dělám stále chyby, ale učím se abych byl lepší!
 
-
 P_vse_nej:
   - Mockrát díky!
   - To je moc hezké, děkuji.
@@ -117,3 +116,9 @@ souhlas:
   - Tak dobře že souhlasíte. Mohu ještě pomoct?
   - Jsem rád, že souhlasíte. Mohu ještě pomoci?
   - Pomůžu vám ještě s něčím?
+
+P_kolik_hodin:
+  - právě je timenow()
+
+P_kolikateho:
+  - dnes je datenow()
