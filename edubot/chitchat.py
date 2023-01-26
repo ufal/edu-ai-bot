@@ -80,6 +80,7 @@ class Seq2SeqChitchatHandler(ChitchatHandler):
         self.device = device
         self.model = model.to(self.device)
         self.decode_params = config['DECODE_PARAMS']
+        self.inappropriate_kws = config['INAPPROPRIATE_KWS']
 
     def get_reply(self, context: Text):
         # translate into English
@@ -99,7 +100,7 @@ class Seq2SeqChitchatHandler(ChitchatHandler):
                                                **self.decode_params)
         for candidate in reply_candidates:
             candidate = self.tokenizer.decode(candidate, skip_special_tokens=True)
-            if not self.is_unappropriate(candidate):
+            if not self.is_inappropriate(candidate):
                 reply = candidate
                 break
             logger.info('Throwing out profane reply: %s', candidate)
@@ -112,15 +113,8 @@ class Seq2SeqChitchatHandler(ChitchatHandler):
         reply = self.remote_service_handler.translate_en2cs(reply)
         return reply
 
-    def is_unappropriate(self, utterance: Text):
-        suspicious_keywords = ['date', 'kill', 'lonely', 'male', 'female',
-                               'attracted', 'sex', 'transsexuality',
-                               'desire', 'sexuality', 'shy', 'girl', 'boy', 'likes me', 'love you',
-                               'girlfriend', 'boyfriend', 'friend', 'kids', 'children',
-                               'wedding', 'married', 'accident', 'crash', 'die', 'dead', 'nigger', 'nigga',
-                               'racist', 'race', 'fuck', 'shit', 'cunt', 'whore', 'bitch', 'use me', 'exploit',
-                               'sucker']
-        return any((fuzz.partial_ratio(utterance.lower(), kw) > 75 for kw in suspicious_keywords))
+    def is_inappropriate(self, utterance: Text):
+        return any((fuzz.partial_ratio(utterance.lower(), kw) > 75 for kw in self.inappropriate_kws))
 
     def _wrap_utterance(self, utterance: Text):
         return f"{utterance.strip()}\n"

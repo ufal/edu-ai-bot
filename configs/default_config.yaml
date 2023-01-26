@@ -8,7 +8,7 @@ URLs:
     LINDAT_CS2EN: "https://lindat.mff.cuni.cz/services/translation/api/v2/models/cs-en?src=cs&tgt=en"
 QA_MODEL_PATH: "multilingual_qaqg"
 HC_RESPONSES_PATH: "data/handcrafted_responses.yml"
-INTENT_MODEL_PATH: "edubot/educlf/trained_model"
+INTENT_MODEL_PATH: "edubot/educlf/trained-model"
 SENTENCE_REPR_MODEL: "paraphrase-multilingual-mpnet-base-v2"
 CHITCHAT: 
     MODEL: "facebook/blenderbot-400M-distill"
@@ -17,6 +17,13 @@ CHITCHAT:
         - "Na tohle nemám odpověď. Můžeme změnít téma?"
         - "Můžeme se bavit o něčem jiném?"
         - "Pojďme změnit téma, co vás ještě zajímá?"
+    INAPPROPRIATE_KWS: ['date', 'kill', 'lonely', 'male', 'female',
+        'attracted', 'sex', 'transsexuality', 'attraction',
+        'desire', 'sexuality', 'shy', 'girl', 'boy', 'likes me', 'love you',
+        'girlfriend', 'boyfriend', 'friend', 'kids', 'children',
+        'wedding', 'married', 'accident', 'crash', 'die', 'dead', 'nigger', 'nigga',
+        'racist', 'race', 'fuck', 'shit', 'cunt', 'whore', 'bitch', 'use me', 'exploit',
+        'sucker']
 LOGFILE_PATH: None
 STOPWORDS_PATH: "data/stopwords.txt"
 CHITCHAT_INTENTS:

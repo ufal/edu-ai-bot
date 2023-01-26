@@ -17,8 +17,8 @@ class QAHandler:
         logger.info(f'Q: {query} | F: {filtered_query_nac} | {filtered_query_nacv}')
 
         if not context and filtered_query_nacv:
-            for q, a, s in [(filtered_query_nacv, 'title_cz', 'logic'),
-                            (filtered_query_nacv, 'first_paragraph_cz', 'logic'),
+            for q, a, s in [#(filtered_query_nacv, 'title_cz', 'logic'),   # XXX logic olympiad not used at the moment, TODO make this configurable
+                            #(filtered_query_nacv, 'first_paragraph_cz', 'logic'),
                             (f'"{filtered_query_nac}"', 'title_str', 'wiki'),
                             (f'"{filtered_query_nac}"', 'title_cz', 'wiki'),
                             (f'"{filtered_query_nac}"', 'first_paragraph_cz', 'wiki'),

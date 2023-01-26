@@ -134,7 +134,8 @@ class IntentClassifierModel:
         logits_sm = torch.softmax(logits, dim=-1)
         predicted_id = numpy.argmax(logits.numpy(), axis=-1)
         pred_confidence = numpy.max(logits_sm.numpy(), axis=-1)
-        return [(self.id2lbl[pred], conf) for pred, conf in zip(predicted_id, pred_confidence)]
+        x = [(self.id2lbl[pred], conf) for pred, conf in zip(predicted_id, pred_confidence)]
+        return x
 
     def encode(self, sentence):
         _, last_hidden_states = self._feed(sentence)

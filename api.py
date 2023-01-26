@@ -35,10 +35,11 @@ def ask():
 
     exact = request.json.get('exact')
     context, title, url = None, None, None
-    intent, intent_conf = intent_clf_model.predict_example(query)[0] if intent_clf_model else None, None
     if query.startswith('/w'):
         query = query[2:].strip()
-        intent = 'qawiki'
+        intent, intent_conf = 'qawiki', 1.0
+    else:
+        intent, intent_conf = intent_clf_model.predict_example(query)[0] if intent_clf_model else (None, None)
     logger.info(f"Intent: {intent} ({intent_conf})")
 
     if intent in custom_config['CHITCHAT_INTENTS']:
