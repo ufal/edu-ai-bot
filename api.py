@@ -6,6 +6,7 @@ import json
 import random
 from argparse import ArgumentParser
 from time import strftime
+import re
 
 import torch
 import flask
@@ -34,9 +35,10 @@ def ask():
     logger.info(f"Korektor: {query}")
 
     exact = request.json.get('exact')
+    force_wiki = request.json.get('w')
     context, title, url = None, None, None
-    if query.startswith('/w'):
-        query = query[2:].strip()
+    if force_wiki or query.startswith('/w'):
+        query = re.sub(r'^/w\s+', '', query)
         intent, intent_conf = 'qawiki', 1.0
     else:
         intent, intent_conf = intent_clf_model.predict_example(query)[0] if intent_clf_model else (None, None)
