@@ -24,6 +24,7 @@ CHITCHAT:
         'wedding', 'married', 'accident', 'crash', 'die', 'dead', 'nigger', 'nigga',
         'racist', 'race', 'fuck', 'shit', 'cunt', 'whore', 'bitch', 'use me', 'exploit',
         'sucker']
+    MAXLEN: 127
 LOGFILE_PATH: None
 STOPWORDS_PATH: "data/stopwords.txt"
 CHITCHAT_INTENTS:

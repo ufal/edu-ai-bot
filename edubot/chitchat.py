@@ -74,8 +74,11 @@ class Seq2SeqChitchatHandler(ChitchatHandler):
         super().__init__()
         self.remote_service_handler = remote_service_handler
         # TODO might need to support different classes
-        self.tokenizer = AutoTokenizer.from_pretrained(config['MODEL'])
+        self.maxlen = config['MAXLEN']
         model = AutoModelForSeq2SeqLM.from_pretrained(config['MODEL'])
+        self.tokenizer = AutoTokenizer.from_pretrained(config['MODEL'],
+                                                       model_max_length=self.maxlen,
+                                                       truncation_side='left')
         self.fallback_replies = config['FALLBACK_REPLIES']
         self.device = device
         self.model = model.to(self.device)
@@ -91,7 +94,10 @@ class Seq2SeqChitchatHandler(ChitchatHandler):
 
         # run chitchat model
         concat = self.tokenizer.eos_token.join(history + [question]) + self.tokenizer.eos_token
-        question = self.tokenizer.encode(concat, return_tensors='pt').to(self.device)
+        question = self.tokenizer.encode(concat,
+                                         max_length=self.maxlen,
+                                         truncation=True,
+                                         return_tensors='pt').to(self.device)
         # TODO: look at bad_word_ids
         # https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.generation_utils.GenerationMixin.generate.bad_words_ids(List[List[int]],
         reply_candidates = self.model.generate(question,
