@@ -14,7 +14,10 @@ INTENT_MODEL:
     URL: "http://quest.ms.mff.cuni.cz/namuddis/intent-model.zip"
 SENTENCE_REPR_MODEL: "paraphrase-multilingual-mpnet-base-v2"
 CHITCHAT: 
-    MODEL: "facebook/blenderbot-400M-distill"
+    # MODEL: "facebook/blenderbot-400M-distill"
+    MODEL: "AIML"
+    AIML_DATA_FILE: "edubot/chitchat/aiml_brain.dump"
+    AIML_STARTUP_FILE: "edubot/chitchat/std-startup.aiml"
     DECODE_PARAMS: {max_length: 100, temperature: 1.5,top_p: 0.9, repetition_penalty: 1.2, top_k: 50, do_sample: True, num_beams: 3}
     FALLBACK_REPLIES:
         - "Na tohle nemám odpověď. Můžeme změnít téma?"

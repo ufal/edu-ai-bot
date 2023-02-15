@@ -4,3 +4,4 @@ edubot/educlf/trained-model
 edubot/educlf/trained-intent*
 edubot/czech-morfflex2.0-pdtc1.0-220710
 multilingual_qaqg
+python-aiml-chatbot
