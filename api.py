@@ -121,7 +121,9 @@ if __name__ == '__main__':
     remote_service_handler = RemoteServiceHandler(custom_config, stopwords)
 
     # load QA
-    if os.path.isdir(custom_config['QA_MODEL_PATH']):
+    if custom_config['QA_HUGGINGFACE']:
+        qa_model = custom_config['QA_MODEL_PATH']
+    elif os.path.isdir(custom_config['QA_MODEL_PATH']):
         from multilingual_qaqg.mlpipelines import pipeline
 
         qa_model = pipeline("multitask-qa-qg",
@@ -142,7 +144,7 @@ if __name__ == '__main__':
         from sentence_transformers import SentenceTransformer
         sentence_repr_model = SentenceTransformer(custom_config['SENTENCE_REPR_MODEL'],
                                                   device=device)
-    qa_handler = QAHandler(qa_model, sentence_repr_model, remote_service_handler)
+    qa_handler = QAHandler(qa_model, sentence_repr_model, remote_service_handler, custom_config['QA_HUGGINGFACE'])
 
     # load chitchat
     if custom_config.get('CHITCHAT', {'MODEL': None})['MODEL']:

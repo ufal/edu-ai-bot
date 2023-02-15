@@ -1,12 +1,18 @@
 from typing import Text, Iterable, Tuple, Dict, Any, List
 from logzero import logger
 from scipy.spatial.distance import cosine
+from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 
 
 class QAHandler:
 
-    def __init__(self, qa_model, repr_model, remote_service_handler):
-        self.qa_model = qa_model
+    def __init__(self, qa_model, repr_model, remote_service_handler, is_huggingface=False):
+        if is_huggingface:
+            self.qa_model = AutoModelForQuestionAnswering.from_pretrained(qa_model)
+            self.hf_tokenizer = AutoTokenizer.from_pretrained(qa_model)
+        else:
+            self.qa_model = qa_model
+            self.hf_tokenizer = None
         self.repr_model = repr_model
         self.remote_service_handler = remote_service_handler
 
@@ -49,7 +55,15 @@ class QAHandler:
         if exact and query_type == 'default' and self.qa_model:
             if not context:
                 context = chosen_answer['first_paragraph']
-            response, _ = self.qa_model({'question': query, 'context': context})
+            if self.hf_tokenizer:
+                inputs = self.hf_tokenizer(query, context, return_tensors = "pt")
+                outputs = self.qa_model(**inputs)
+                start_position = outputs.start_logits[0].argmax()
+                end_position = outputs.end_logits[0].argmax()
+                answer_ids = inputs["input_ids"][0][start_position:end_position]
+                response = self.hf_tokenizer.decode(answer_ids)
+            else:
+                response, _ = self.qa_model({'question': query, 'context': context})
             return context, response, title, chosen_answer["url"]
         return chosen_answer["first_paragraph"], None, title, chosen_answer["url"]
 
