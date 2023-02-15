@@ -10,6 +10,10 @@ from transformers import Trainer, TrainingArguments,\
     RobertaTokenizer, ElectraTokenizer, AutoTokenizer,\
     AutoModel, EvalPrediction
 
+from logzero import logger
+from tqdm.auto import tqdm
+import requests, zipfile, io
+
 
 def get_preprocess_f(label_mapping, tokenizer):
     def fun(example, return_tensors=False):
@@ -34,10 +38,30 @@ def compute_metrics(predictions):
     print(result)
     return result
 
+def remove_intermediate_folder(loc):
+  intermediate_location = loc
+  intermediate_locations = []
+
+  while True:
+    files = list(os.path.join(intermediate_location, f) for f in os.listdir(intermediate_location))
+    if len(files) != 1:
+      break
+    intermediate_location = files[0]
+    intermediate_locations = [intermediate_location] + intermediate_locations
+  
+  if intermediate_location == loc:
+    return
+  
+  for f in os.listdir(intermediate_location):
+    os.rename(os.path.join(intermediate_location, f), os.path.join(loc, f))
+  
+  for il in intermediate_locations:
+    os.rmdir(il)
+
 
 class IntentClassifierModel:
 
-    def __init__(self, model_description, device, label_mapping, out_dir):
+    def __init__(self, model_description, device, label_mapping, out_dir, config):
         self._load_mappings(label_mapping)
         if model_description is not None:
             model, tokenizer, preprocess_f = self._load_model_from_desc(model_description, device, label_mapping)
@@ -51,6 +75,7 @@ class IntentClassifierModel:
         self.preprocess_f = preprocess_f
         self.trainer = None
         self.repr_pooling = torch.nn.AvgPool1d(kernel_size=10, stride=5)
+        self.config = config
 
     def _load_mappings(self, label_mapping):
         if label_mapping is not None:
@@ -148,8 +173,22 @@ class IntentClassifierModel:
         self.trainer.save_model(self.out_dir)
         with open(os.path.join(self.out_dir, 'labels.pkl'), 'wb') as fd:
             pickle.dump(self.lbl2id, fd)
+    
+    def _download(self):
+        url = self.config['INTENT_MODEL']['URL']
+        save_dir = self.config['INTENT_MODEL']['PATH']
+        r = requests.get(url, stream=True)
+        z = zipfile.ZipFile(io.BytesIO(r.content))
+        logger.info(f"Extracting data from {url} to {save_dir}")
+        z.extractall(path=save_dir)
+        remove_intermediate_folder(save_dir)
 
-    def load_from(self, save_dir):
+
+    def load_from(self):
+        save_dir = self.config['INTENT_MODEL']['PATH']
+        if not os.path.isdir(save_dir):
+            logger.warning('Could not find intent model directory, downloading it.')
+            self._download()
         with open(os.path.join(save_dir, 'labels.pkl'), 'rb') as fd:
             label_mapping = pickle.load(fd)
         self._load_mappings(label_mapping)

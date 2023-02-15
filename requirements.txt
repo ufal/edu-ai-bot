@@ -9,5 +9,4 @@ pyyaml
 flask
 logzero
 sentence_transformers
-python-Levensthein
 fuzzywuzzy

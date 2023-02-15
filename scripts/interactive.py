@@ -22,7 +22,7 @@ def run_conversation(endpoint_url, exact):
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument('-u', '--endpoint-url', '--url', type=str, default='http://localhost:8202', help='URL where the server is running')
+    ap.add_argument('-u', '--endpoint-url', '--url', type=str, default='http://localhost:8200', help='URL where the server is running')
     ap.add_argument('--exact', action='store_true', help='Require exact results from QA (use QA model, not just solr)')
     ap.add_argument('--no-exact', action='store_false', dest='exact')
     ap.set_defaults(exact=True)
