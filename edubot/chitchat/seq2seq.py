@@ -62,6 +62,7 @@ class ChitchatHandler(ABC):
         return reply
 
 
+
 class DummyChitchatHandler(ChitchatHandler):
 
     def get_reply(self, context: Text):

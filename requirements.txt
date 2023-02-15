@@ -9,7 +9,14 @@ pyyaml
 flask
 logzero
 sentence_transformers
+<<<<<<< HEAD
 Levensthein
 fuzzywuzzy
 ufal.morphodita
 conllu
+=======
+fuzzywuzzy
+python-Levensthein
+openai
+langchain
+>>>>>>> 50c3441 (using openai GPT-3 models for QA and optional reformulation)

@@ -1,19 +1,50 @@
 from typing import Text, Iterable, Tuple, Dict, Any, List
 from logzero import logger
 from scipy.spatial.distance import cosine
+import os
+
+from langchain import OpenAI, PromptTemplate, LLMChain
+
+class OpenAIQA:
+    def __init__(self, model_name):
+        answer_llm = OpenAI(model_name=model_name,
+                            temperature=0,
+                            top_p=0.8,
+                            openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
+        answer_prompt = PromptTemplate(input_variables=['context', 'question'],
+                                       template="""Odpověz na otázku s využitím kontextu.
+        Využij pouze informace z kontextu, kopíruj text co nejvíc je to možné.
+        Buď stručný a odpověz maximálně jednou větou. Nepoužívej více vět.
+        Kontext:
+        {context}
+        Otázka:
+        {question}
+        Odpověď:""")
+        self.llm_answer_chain = LLMChain(llm=answer_llm, prompt=answer_prompt)
+
+    def __call__(self, kwarg_dict: Dict[Text, Any]) -> Tuple[Text, Text]:
+        assert 'context' in kwarg_dict and 'question' in kwarg_dict
+        response = self.llm_answer_chain.run(**kwarg_dict)
+        return response, kwarg_dict['context']
 
 
 class QAHandler:
 
-    def __init__(self, qa_model, repr_model, remote_service_handler):
+    def __init__(self, qa_model, repr_model, remote_service_handler, reformulate_model=None):
         self.qa_model = qa_model
         self.repr_model = repr_model
         self.remote_service_handler = remote_service_handler
+        self.reformulate_model = reformulate_model
+
 
     def apply_qa(self, query, context=None, exact=False):
         """Main QA entry point, running the query & models."""
-
-        filtered_query_nac, filtered_query_nacv, query_type = self.remote_service_handler.filter_query(query)
+        if self.reformulate_model is not None:
+            reformulated_query = self.reformulate_model.run(question=query) or query
+        else:
+            reformulated_query = query
+        filtered_query_nac, filtered_query_nacv, query_type =\
+            self.remote_service_handler.filter_query(reformulated_query)
         logger.info(f'Q: {query} | F: {filtered_query_nac} | {filtered_query_nacv}')
 
         if not context and filtered_query_nacv:
@@ -51,7 +82,7 @@ class QAHandler:
                 context = chosen_answer['first_paragraph']
             response, _ = self.qa_model({'question': query, 'context': context})
             return context, response, title, chosen_answer["url"]
-        return chosen_answer["first_paragraph"], None, title, chosen_answer["url"]
+        return chosen_answer['first_paragraph'], None, title, chosen_answer["url"]
 
     def rank_utterance_list_by_similarity(self, reference: Text, candidates: Iterable[Tuple[Text, Any]])\
             -> List[Tuple[float, Dict[Text, Text]]]:
