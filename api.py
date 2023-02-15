@@ -17,7 +17,8 @@ from logzero import logger
 
 from edubot.remote_services import RemoteServiceHandler
 from edubot.qa import QAHandler
-from edubot.chitchat import Seq2SeqChitchatHandler, DummyChitchatHandler
+from edubot.chitchat.seq2seq import Seq2SeqChitchatHandler, DummyChitchatHandler
+from edubot.chitchat.aiml_chitchat import AIMLChitchat
 from edubot.educlf.model import IntentClassifierModel
 
 
@@ -145,8 +146,11 @@ if __name__ == '__main__':
     qa_handler = QAHandler(qa_model, sentence_repr_model, remote_service_handler)
 
     # load chitchat
-    if custom_config.get('CHITCHAT', {'MODEL': None})['MODEL']:
-        chitchat_handler = Seq2SeqChitchatHandler(custom_config['CHITCHAT'],
+    chitchat_model_name = custom_config.get('CHITCHAT', {'MODEL': None})['MODEL']
+    if chitchat_model_name == "AIML":
+        chitchat_handler = AIMLChitchat(custom_config, remote_service_handler)
+    elif chitchat_model_name:
+        chitchat_handler = Seq2SeqChitchatHandler(chitchat_model_name,
                                                   remote_service_handler,
                                                   device)
     else:
