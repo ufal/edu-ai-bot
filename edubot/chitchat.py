@@ -117,6 +117,7 @@ class Seq2SeqChitchatHandler(ChitchatHandler):
 
         # translate back to CS
         reply = self.remote_service_handler.translate_en2cs(reply)
+        reply = self.remote_service_handler.postprocess_gender(reply)
         return reply
 
     def is_inappropriate(self, utterance: Text):
