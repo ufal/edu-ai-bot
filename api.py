@@ -71,7 +71,7 @@ def ask():
         'intent': intent
     }
     # file logging
-    if 'LOGFILE_PATH' in custom_config and custom_config['LOGFILE_PATH'] is not None:
+    if ('LOGFILE_PATH' in custom_config) and (custom_config['LOGFILE_PATH'] is not None):
         log_data = {'timestamp': str(datetime.datetime.now()),
                     'request': {'remote_addr': request.remote_addr,
                                 'url': request.url,
