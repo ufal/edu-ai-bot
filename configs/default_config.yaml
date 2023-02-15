@@ -6,7 +6,8 @@ URLs:
     LOGIC: "https?//www.logickaolympiada.cz*"
     LINDAT_EN2CS: "https://lindat.mff.cuni.cz/services/translation/api/v2/models/en-cs?src=en&tgt=cs"
     LINDAT_CS2EN: "https://lindat.mff.cuni.cz/services/translation/api/v2/models/cs-en?src=cs&tgt=en"
-QA_MODEL_PATH: "openai/text-davinci-003" # "multilingual_qaqg" or "openai/text-yyyy-00x"
+QA_MODEL_PATH: "multilingual_qaqg"
+#QA_MODEL_PATH: "openai/text-davinci-003" # "multilingual_qaqg" or "openai/text-yyyy-00x"
 REFORMULATE_MODEL_PATH: "" # "openai/text-yyyy-00x" or empty
 HC_RESPONSES_PATH: "data/handcrafted_responses.yml"
 INTENT_MODEL:
