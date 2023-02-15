@@ -15,7 +15,7 @@ INTENT_MODEL:
 SENTENCE_REPR_MODEL: "paraphrase-multilingual-mpnet-base-v2"
 CHITCHAT: 
     MODEL: "facebook/blenderbot-400M-distill"
-    DECODE_PARAMS: {max_length: 100, temperature: 1.5,top_p: 0.9, repetition_penalty: 1.1, top_k: 50, do_sample: True}
+    DECODE_PARAMS: {max_length: 100, temperature: 1.5,top_p: 0.9, repetition_penalty: 1.2, top_k: 50, do_sample: True, num_beams: 3}
     FALLBACK_REPLIES:
         - "Na tohle nemám odpověď. Můžeme změnít téma?"
         - "Můžeme se bavit o něčem jiném?"
