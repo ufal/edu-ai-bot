@@ -16,14 +16,9 @@ from flask import request, jsonify
 from logzero import logger
 
 from edubot.remote_services import RemoteServiceHandler
-<<<<<<< HEAD
-from edubot.qa import QAHandler
+from edubot.qa import QAHandler, OpenAIQA
 from edubot.chitchat.seq2seq import Seq2SeqChitchatHandler, DummyChitchatHandler
 from edubot.chitchat.aiml_chitchat import AIMLChitchat
-=======
-from edubot.qa import QAHandler, OpenAIQA
-from edubot.chitchat import Seq2SeqChitchatHandler, DummyChitchatHandler
->>>>>>> 50c3441abccfef8cc57d306bfafef11cad04b288
 from edubot.educlf.model import IntentClassifierModel
 from langchain import OpenAI, PromptTemplate, LLMChain
 
