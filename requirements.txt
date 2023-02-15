@@ -16,3 +16,4 @@ conllu
 openai
 langchain
 aiml
+nltk

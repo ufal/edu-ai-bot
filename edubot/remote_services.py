@@ -51,7 +51,7 @@ class RemoteServiceHandler:
             tagged = [dotdict({'form': w['form'], 'lemma': w['lemma'], 'tag': w['xpos']}) for s in tagged for w in s]
         except Exception as e:
             logger.warn('UDpipe problem:' + str(e))
-            return query
+            return query, None, None
         logger.debug("\n" + "\n".join(["\t".join([w['form'], w['lemma'], w['tag']]) for w in tagged]))
         filtered_nac = " ".join([w.form for w in tagged
                                  if w.tag[0] in set(['N', 'A', 'C']) and w.lemma not in self.stopwords])
