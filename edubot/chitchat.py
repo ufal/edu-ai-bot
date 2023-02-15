@@ -75,6 +75,7 @@ class Seq2SeqChitchatHandler(ChitchatHandler):
         self.remote_service_handler = remote_service_handler
         # TODO might need to support different classes
         self.maxlen = config['MAXLEN']
+        logger.info(f"Max-length for the chitchat: {self.maxlen}")
         model = AutoModelForSeq2SeqLM.from_pretrained(config['MODEL'])
         self.tokenizer = AutoTokenizer.from_pretrained(config['MODEL'],
                                                        model_max_length=self.maxlen,
