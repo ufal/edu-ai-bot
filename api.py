@@ -72,6 +72,7 @@ def ask():
     }
     # file logging
     if ('LOGFILE_PATH' in custom_config) and (custom_config['LOGFILE_PATH'] is not None):
+        logger.info(f"Logging into {custom_config['LOGFILE_PATH']}")
         log_data = {'timestamp': str(datetime.datetime.now()),
                     'request': {'remote_addr': request.remote_addr,
                                 'url': request.url,
@@ -94,7 +95,7 @@ if __name__ == '__main__':
     ap.add_argument('-p', '--port', type=int, default=8200, help="Port to listen on.")
     ap.add_argument('-ha', '--host-addr', type=str, default='0.0.0.0')
     ap.add_argument('-c', '--config', type=str, help='Path to yaml configuration file', default=os.path.join("configs", "default_config.yaml"))
-    ap.add_argument('-l', '--logfile', type=str, help='Path to a file to log requests', default="DefaultLog.log")
+    ap.add_argument('-l', '--logfile', type=str, help='Path to a file to log requests',)# default="DefaultLog.log")
     ap.add_argument('-d', '--debug', '--flask-debug', action='store_true', help='Show flask debug messages')
     ap.add_argument('--cuda', action='store_true', help='Use GPU (true by default)')
     ap.add_argument('--no-cuda', dest='cuda', action='store_false')
@@ -106,8 +107,8 @@ if __name__ == '__main__':
     logger.info(f"Loading config from: {args.config}")
     with open(args.config, 'rt') as fd:
         custom_config = yaml.load(fd, Loader=SafeLoader)
-    if args.logfile:
-        custom_config['LOGFILE_PATH'] = args.logfile
+    custom_config['LOGFILE_PATH'] = args.logfile
+
 
     # set default device based on CUDA config
     cuda_available = args.cuda and torch.cuda.is_available()
