@@ -9,7 +9,9 @@ URLs:
     LINDAT_CS2EN: "https://lindat.mff.cuni.cz/services/translation/api/v2/models/cs-en?src=cs&tgt=en"
 QA_MODEL_PATH: "multilingual_qaqg"
 HC_RESPONSES_PATH: "data/handcrafted_responses.yml"
-INTENT_MODEL_PATH: "edubot/educlf/trained-model"
+INTENT_MODEL:
+    PATH: "edubot/educlf/trained-model"
+    URL: "http://quest.ms.mff.cuni.cz/namuddis/intent-model.zip"
 SENTENCE_REPR_MODEL: "paraphrase-multilingual-mpnet-base-v2"
 CHITCHAT: 
     MODEL: "facebook/blenderbot-400M-distill"

@@ -9,7 +9,7 @@ pyyaml
 flask
 logzero
 sentence_transformers
-python-Levensthein
+Levensthein
 fuzzywuzzy
 ufal.morphodita
 conllu

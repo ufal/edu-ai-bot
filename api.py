@@ -18,6 +18,7 @@ from logzero import logger
 from edubot.remote_services import RemoteServiceHandler
 from edubot.qa import QAHandler
 from edubot.chitchat import Seq2SeqChitchatHandler, DummyChitchatHandler
+from edubot.educlf.model import IntentClassifierModel
 
 
 app = flask.Flask(__name__)
@@ -92,8 +93,8 @@ if __name__ == '__main__':
     ap = ArgumentParser()
     ap.add_argument('-p', '--port', type=int, default=8200, help="Port to listen on.")
     ap.add_argument('-ha', '--host-addr', type=str, default='0.0.0.0')
-    ap.add_argument('-c', '--config', type=str, help='Path to yaml configuration file', required=True)
-    ap.add_argument('-l', '--logfile', type=str, help='Path to a file to log requests')
+    ap.add_argument('-c', '--config', type=str, help='Path to yaml configuration file', default=os.path.join("configs", "default_config.yaml"))
+    ap.add_argument('-l', '--logfile', type=str, help='Path to a file to log requests', default="DefaultLog.log")
     ap.add_argument('-d', '--debug', '--flask-debug', action='store_true', help='Show flask debug messages')
     ap.add_argument('--cuda', action='store_true', help='Use GPU (true by default)')
     ap.add_argument('--no-cuda', dest='cuda', action='store_false')
@@ -102,13 +103,16 @@ if __name__ == '__main__':
     args = ap.parse_args()
 
     # get config
+    logger.info(f"Loading config from: {args.config}")
     with open(args.config, 'rt') as fd:
         custom_config = yaml.load(fd, Loader=SafeLoader)
     if args.logfile:
         custom_config['LOGFILE_PATH'] = args.logfile
 
     # set default device based on CUDA config
-    device = torch.device('cuda') if args.cuda and torch.cuda.is_available() else torch.device('cpu:0')
+    cuda_available = args.cuda and torch.cuda.is_available()
+    logger.info(f"Running on {'gpu' if cuda_available else 'cpu'}")
+    device = torch.device('cuda') if cuda_available else torch.device('cpu:0')
 
     # load remote services handler
     remote_service_handler = RemoteServiceHandler(custom_config)
@@ -122,7 +126,7 @@ if __name__ == '__main__':
                             os.path.join(custom_config['QA_MODEL_PATH'], "mt5_qg_tokenizer"),
                             use_cuda=args.cuda)
     else:
-        logger.warn('Could not find QA directory, will run without it')
+        logger.warning('Could not find QA directory, will run without it')
         qa_model = None
 
     if custom_config['SENTENCE_REPR_MODEL'].lower() in ['robeczech', 'eleczech']:
@@ -143,22 +147,16 @@ if __name__ == '__main__':
                                                   remote_service_handler,
                                                   device)
     else:
-        logger.warn('No chitchat model defined, will run without it')
+        logger.warning('No chitchat model defined, will run without it')
         chitchat_handler = DummyChitchatHandler()
 
     # load intent classifier
-    if os.path.isdir(custom_config['INTENT_MODEL_PATH']):
-        from edubot.educlf.model import IntentClassifierModel
-
-        intent_clf_model = IntentClassifierModel(None, device, None, None)
-        intent_clf_model.load_from(custom_config['INTENT_MODEL_PATH'])
-    else:
-        logger.warn('Could not find intent model directory, will run without intent model.')
-        intent_clf_model = None
+    intent_clf_model = IntentClassifierModel(None, device, None, None, custom_config)
+    intent_clf_model.load_from()
 
     # load handcrafted responses
     if not os.path.exists(custom_config['HC_RESPONSES_PATH']):
-        logger.warn('Could not find handcrafted responses, will run without them.')
+        logger.warning('Could not find handcrafted responses, will run without them.')
         handcrafted_responses = dict()
     else:
         with open(custom_config['HC_RESPONSES_PATH'], 'rt') as fd:
