@@ -16,9 +16,10 @@ from flask import request, jsonify
 from logzero import logger
 
 from edubot.remote_services import RemoteServiceHandler
-from edubot.qa import QAHandler
+from edubot.qa import QAHandler, OpenAIQA
 from edubot.chitchat import Seq2SeqChitchatHandler, DummyChitchatHandler
 from edubot.educlf.model import IntentClassifierModel
+from langchain import OpenAI, PromptTemplate, LLMChain
 
 
 app = flask.Flask(__name__)
@@ -121,7 +122,9 @@ if __name__ == '__main__':
     remote_service_handler = RemoteServiceHandler(custom_config, stopwords)
 
     # load QA
-    if os.path.isdir(custom_config['QA_MODEL_PATH']):
+    if 'openai/' in custom_config['QA_MODEL_PATH']:
+        qa_model = OpenAIQA(custom_config['QA_MODEL_PATH'].split('/')[-1])
+    elif os.path.isdir(custom_config['QA_MODEL_PATH']):
         from multilingual_qaqg.mlpipelines import pipeline
 
         qa_model = pipeline("multitask-qa-qg",
@@ -142,7 +145,26 @@ if __name__ == '__main__':
         from sentence_transformers import SentenceTransformer
         sentence_repr_model = SentenceTransformer(custom_config['SENTENCE_REPR_MODEL'],
                                                   device=device)
-    qa_handler = QAHandler(qa_model, sentence_repr_model, remote_service_handler)
+    reformulate_model_path = custom_config.get('REFORMULATE_MODEL_PATH', None)
+    if reformulate_model_path is not None and 'openai/' in reformulate_model_path:
+        reformulate_model_name = reformulate_model_path.split('/')[-1]
+        reformulate_llm = OpenAI(model_name=reformulate_model_name,
+                                 temperature=0,
+                                 top_p=0.8,
+                                 openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
+        reformulate_prompt = PromptTemplate(input_variables=['question'],
+                                            template="""Začni odpověď na otázku.
+Otázka:
+{question}
+Odpověď:""")
+        reformulate_model = LLMChain(llm=reformulate_llm, prompt=reformulate_prompt)
+    else:
+        reformulate_model = None
+
+    qa_handler = QAHandler(qa_model,
+                           sentence_repr_model,
+                           remote_service_handler,
+                           reformulate_model)
 
     # load chitchat
     if custom_config.get('CHITCHAT', {'MODEL': None})['MODEL']:
