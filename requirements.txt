@@ -10,3 +10,6 @@ flask
 logzero
 sentence_transformers
 fuzzywuzzy
+python-Levensthein
+openai
+langchain

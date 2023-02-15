@@ -27,7 +27,7 @@ class RemoteServiceHandler:
             url_fix(self.urls['SOLR'].format(query=query))
         )
         j = json.loads(response.content.decode('utf8'))['response']
-        logger.debug(query + "\n" + str(j))
+        # logger.debug(query + "\n" + str(j))
 
         return j
 
