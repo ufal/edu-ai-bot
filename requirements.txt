@@ -11,3 +11,5 @@ logzero
 sentence_transformers
 python-Levensthein
 fuzzywuzzy
+ufal.morphodita
+conllu

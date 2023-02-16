@@ -29,5 +29,6 @@ CHITCHAT:
 LOGFILE_PATH: None
 STOPWORDS_PATH: "data/stopwords.txt"
 GENDERED_WORDS_PATH: "data/gendered_words.tsv"
+IDENTITY_VERBS_PATH: "data/identity_verbs.txt"
 CHITCHAT_INTENTS:
     - "chch"
