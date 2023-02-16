@@ -45,6 +45,8 @@ class QAHandler:
             reformulated_query = query
         filtered_query_nac, filtered_query_nacv, query_type =\
             self.remote_service_handler.filter_query(reformulated_query)
+        if isinstance(self.qa_model, OpenAIQA):
+            query_type = 'default'
         logger.info(f'Q: {query} | F: {filtered_query_nac} | {filtered_query_nacv}')
 
         if not context and filtered_query_nacv:
