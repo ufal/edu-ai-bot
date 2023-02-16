@@ -1,5 +1,6 @@
 import os
 import aiml
+import csv
 
 from logzero import logger
 
@@ -10,22 +11,20 @@ class AIMLChitchat:
 
         k = aiml.Kernel()
 
-        # To increase the startup speed of the bot it is
-        # possible to save the parsed aiml files as a
-        # dump. This code checks if a dump exists and
-        # otherwise loads the aiml from the xml files
-        # and saves the brain dump.
-        if os.path.exists(BRAIN_FILE):
-            logger.info("Loading from brain file: " + BRAIN_FILE)
-            k.loadBrain(BRAIN_FILE)
-        else:
-            logger.info("Parsing aiml files")
-            k.bootstrap(learnFiles=STARTUP_FILE, commands="load aiml b")
-            logger.info("Saving brain file: " + BRAIN_FILE)
-            k.saveBrain(BRAIN_FILE)
+        logger.info("Parsing aiml files")
+        k.bootstrap(learnFiles=STARTUP_FILE, commands="load aiml b")
+        self.load_bot_properties(k, config["CHITCHAT"]["AIML_BOT_PROPERTIES_FILE"])
+        logger.info("Saving brain file: " + BRAIN_FILE)
+        k.saveBrain(BRAIN_FILE)
 
         self.kernel = k
         self.remote_service_handler = remote_service_handler
+
+    def load_bot_properties(self, kernel, filename):
+        with open(filename, 'rt') as fd:
+            tsv_reader = csv.DictReader(fd, delimiter="\t")
+            for row in tsv_reader:
+                kernel.setBotPredicate(row['name'], row['value'])
 
     def ask_chitchat(self, input_text:str, conv_id):
         logger.debug(f"Question: {input_text}")

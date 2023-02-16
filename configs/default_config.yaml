@@ -20,6 +20,7 @@ CHITCHAT:
     MODEL: "AIML"
     AIML_DATA_FILE: "edubot/chitchat/aiml_brain.dump"
     AIML_STARTUP_FILE: "edubot/chitchat/std-startup.aiml"
+    AIML_BOT_PROPERTIES_FILE: "edubot/chitchat/aiml_bot_properties.tsv"
     DECODE_PARAMS: {max_length: 100, temperature: 1.5,top_p: 0.9, repetition_penalty: 1.2, top_k: 50, do_sample: True, num_beams: 3}
     FALLBACK_REPLIES:
         - "Na tohle nemám odpověď. Můžeme změnít téma?"
