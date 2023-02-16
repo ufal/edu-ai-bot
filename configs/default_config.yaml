@@ -1,6 +1,7 @@
 URLs:
     SOLR: "http://quest.ms.mff.cuni.cz/namuddis/qasolr/wiki_test/query?start=0&rows=10&q={query}&wt=json&fl=title,first_paragraph,url,score"
-    UDPIPE: "http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer&tagger&data={query}"
+    UDPIPE_TAG: "http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer&tagger&data={query}"
+    UDPIPE_PARSE: "http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer&tagger&parser&data={query}"
     KOREKTOR: "http://lindat.mff.cuni.cz/services/korektor/api/correct"
     WIKI: "https?//cs.wikipedia.org*"
     LOGIC: "https?//www.logickaolympiada.cz*"
@@ -34,5 +35,7 @@ CHITCHAT:
     MAXLEN: 127
 LOGFILE_PATH: None
 STOPWORDS_PATH: "data/stopwords.txt"
+GENDERED_WORDS_PATH: "data/gendered_words.tsv"
+IDENTITY_VERBS_PATH: "data/identity_verbs.txt"
 CHITCHAT_INTENTS:
     - "chch"

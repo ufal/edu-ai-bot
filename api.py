@@ -118,9 +118,7 @@ if __name__ == '__main__':
     device = torch.device('cuda') if cuda_available else torch.device('cpu:0')
 
     # load remote services handler
-    with open(custom_config['STOPWORDS_PATH'], 'rt') as fd:
-        stopwords = set((w.strip() for w in fd.readlines() if len(w.strip()) > 0))
-    remote_service_handler = RemoteServiceHandler(custom_config, stopwords)
+    remote_service_handler = RemoteServiceHandler(custom_config)
 
     # load QA
     if 'openai/' in custom_config['QA_MODEL_PATH']:

@@ -9,6 +9,8 @@ pyyaml
 flask
 logzero
 sentence_transformers
+ufal.morphodita
+conllu
 fuzzywuzzy
 Levenshtein
 openai
