@@ -16,7 +16,7 @@ from flask import request, jsonify
 from logzero import logger
 
 from edubot.remote_services import RemoteServiceHandler
-from edubot.qa import QAHandler, OpenAIQA
+from edubot.qa import QAHandler, OpenAIQA, OpenAIReformulate
 from edubot.chitchat.seq2seq import Seq2SeqChitchatHandler, DummyChitchatHandler
 from edubot.chitchat.aiml_chitchat import AIMLChitchat
 from edubot.educlf.model import IntentClassifierModel
@@ -43,11 +43,14 @@ def ask():
     if force_wiki or query.startswith('/w'):
         query = re.sub(r'^/w\s+', '', query)
         intent, intent_conf = 'qawiki', 1.0
+    elif query.startswith('/c'):
+        query = re.sub(r'^/w\s+', '', query)
+        intent, intent_conf = 'chch', 1.0
     else:
         intent, intent_conf = intent_clf_model.predict_example(query)[0] if intent_clf_model else (None, None)
     logger.info(f"Intent: {intent} ({intent_conf})")
 
-    if intent in custom_config['CHITCHAT_INTENTS']:
+    if intent in config['CHITCHAT_INTENTS']:
         response = chitchat_handler.ask_chitchat(query, conv_id)
     elif intent in handcrafted_responses:
         available_responses = handcrafted_responses[intent]
@@ -73,8 +76,8 @@ def ask():
         'intent': intent
     }
     # file logging
-    if ('LOGFILE_PATH' in custom_config) and (custom_config['LOGFILE_PATH'] is not None):
-        logger.info(f"Logging into {custom_config['LOGFILE_PATH']}")
+    if ('LOGFILE_PATH' in config) and (config['LOGFILE_PATH'] is not None):
+        logger.info(f"Logging into {config['LOGFILE_PATH']}")
         log_data = {'timestamp': str(datetime.datetime.now()),
                     'request': {'remote_addr': request.remote_addr,
                                 'url': request.url,
@@ -84,7 +87,7 @@ def ask():
                                  'context': context,
                                  'intent': intent,
                                  'korektor': query}}
-        with open(custom_config['LOGFILE_PATH'], 'a', encoding='UTF_8') as fh:
+        with open(config['LOGFILE_PATH'], 'a', encoding='UTF_8') as fh:
             fh.write(json.dumps(log_data, ensure_ascii=False) + "\n")
             fh.flush()
 
@@ -108,9 +111,8 @@ if __name__ == '__main__':
     # get config
     logger.info(f"Loading config from: {args.config}")
     with open(args.config, 'rt') as fd:
-        custom_config = yaml.load(fd, Loader=SafeLoader)
-    custom_config['LOGFILE_PATH'] = args.logfile
-
+        config = yaml.load(fd, Loader=SafeLoader)
+    config['LOGFILE_PATH'] = args.logfile
 
     # set default device based on CUDA config
     cuda_available = args.cuda and torch.cuda.is_available()
@@ -118,47 +120,41 @@ if __name__ == '__main__':
     device = torch.device('cuda') if cuda_available else torch.device('cpu:0')
 
     # load remote services handler
-    remote_service_handler = RemoteServiceHandler(custom_config)
+    remote_service_handler = RemoteServiceHandler(config)
 
     # load QA
-    if 'openai/' in custom_config['QA_MODEL_PATH']:
-        qa_model = OpenAIQA(custom_config['QA_MODEL_PATH'].split('/')[-1])
-    elif os.path.isdir(custom_config['QA_MODEL_PATH']):
+    if 'openai/' in config['QA_MODEL_PATH']:
+        qa_model = OpenAIQA(config['QA_MODEL_PATH'].split('/')[-1])
+    elif os.path.isdir(config['QA_MODEL_PATH']):
         from multilingual_qaqg.mlpipelines import pipeline
 
         qa_model = pipeline("multitask-qa-qg",
-                            os.path.join(custom_config['QA_MODEL_PATH'], "checkpoint-185000"),
-                            os.path.join(custom_config['QA_MODEL_PATH'], "mt5_qg_tokenizer"),
+                            os.path.join(config['QA_MODEL_PATH'], "checkpoint-185000"),
+                            os.path.join(config['QA_MODEL_PATH'], "mt5_qg_tokenizer"),
                             use_cuda=args.cuda)
     else:
         logger.warning('Could not find QA directory, will run without it')
         qa_model = None
+    logger.info(f'QA model: {config["QA_MODEL_PATH"]} / {str(type(qa_model))}')
 
-    if custom_config['SENTENCE_REPR_MODEL'].lower() in ['robeczech', 'eleczech']:
+    if config['SENTENCE_REPR_MODEL'].lower() in ['robeczech', 'eleczech']:
         from edubot.educlf.model import IntentClassifierModel
-        sentence_repr_model = IntentClassifierModel(custom_config['SENTENCE_REPR_MODEL'],
+        sentence_repr_model = IntentClassifierModel(config['SENTENCE_REPR_MODEL'],
                                                     device,
                                                     label_mapping=None,
                                                     out_dir=None)
     else:
         from sentence_transformers import SentenceTransformer
-        sentence_repr_model = SentenceTransformer(custom_config['SENTENCE_REPR_MODEL'],
+        sentence_repr_model = SentenceTransformer(config['SENTENCE_REPR_MODEL'],
                                                   device=device)
-    reformulate_model_path = custom_config.get('REFORMULATE_MODEL_PATH', None)
+    logger.info(f'Sentence repr model: {config["SENTENCE_REPR_MODEL"]} / {str(type(sentence_repr_model))}')
+
+    reformulate_model_path = config.get('REFORMULATE_MODEL_PATH', None)
     if reformulate_model_path is not None and 'openai/' in reformulate_model_path:
-        reformulate_model_name = reformulate_model_path.split('/')[-1]
-        reformulate_llm = OpenAI(model_name=reformulate_model_name,
-                                 temperature=0,
-                                 top_p=0.8,
-                                 openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
-        reformulate_prompt = PromptTemplate(input_variables=['question'],
-                                            template="""Začni odpověď na otázku.
-Otázka:
-{question}
-Odpověď:""")
-        reformulate_model = LLMChain(llm=reformulate_llm, prompt=reformulate_prompt)
+        reformulate_model = OpenAIReformulate(reformulate_model_path.split('/')[-1])
     else:
         reformulate_model = None
+    logger.info(f'Reformulate model: {reformulate_model_path} / {str(type(reformulate_model))}')
 
     qa_handler = QAHandler(qa_model,
                            sentence_repr_model,
@@ -166,9 +162,9 @@ Odpověď:""")
                            reformulate_model)
 
     # load chitchat
-    chitchat_model_name = custom_config.get('CHITCHAT', {'MODEL': None})['MODEL']
+    chitchat_model_name = config.get('CHITCHAT', {'MODEL': None})['MODEL']
     if chitchat_model_name == "AIML":
-        chitchat_handler = AIMLChitchat(custom_config, remote_service_handler)
+        chitchat_handler = AIMLChitchat(config, remote_service_handler)
     elif chitchat_model_name:
         chitchat_handler = Seq2SeqChitchatHandler(chitchat_model_name,
                                                   remote_service_handler,
@@ -176,17 +172,18 @@ Odpověď:""")
     else:
         logger.warning('No chitchat model defined, will run without it')
         chitchat_handler = DummyChitchatHandler()
+    logger.info(f'Chitchat model: {chitchat_model_name} / {str(type(chitchat_handler))}')
 
     # load intent classifier
-    intent_clf_model = IntentClassifierModel(None, device, None, None, custom_config)
+    intent_clf_model = IntentClassifierModel(None, device, None, None, config)
     intent_clf_model.load_from()
 
     # load handcrafted responses
-    if not os.path.exists(custom_config['HC_RESPONSES_PATH']):
+    if not os.path.exists(config['HC_RESPONSES_PATH']):
         logger.warning('Could not find handcrafted responses, will run without them.')
         handcrafted_responses = dict()
     else:
-        with open(custom_config['HC_RESPONSES_PATH'], 'rt') as fd:
+        with open(config['HC_RESPONSES_PATH'], 'rt') as fd:
             handcrafted_responses = yaml.load(fd, Loader=SafeLoader)
 
     # run the stuff

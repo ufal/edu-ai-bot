@@ -24,8 +24,26 @@ class OpenAIQA:
 
     def __call__(self, kwarg_dict: Dict[Text, Any]) -> Tuple[Text, Text]:
         assert 'context' in kwarg_dict and 'question' in kwarg_dict
+        logger.debug(f'OpenAI query {str(kwarg_dict)}')
         response = self.llm_answer_chain.run(**kwarg_dict)
-        return response, kwarg_dict['context']
+        return response.strip(), kwarg_dict['context']
+
+class OpenAIReformulate:
+
+    def __init__(self, model_name):
+        reformulate_llm = OpenAI(model_name=reformulate_model_name,
+                                 temperature=0,
+                                 top_p=0.8,
+                                 openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
+        reformulate_prompt = PromptTemplate(input_variables=['question'],
+                                            template="""Začni odpověď na otázku.
+Otázka:
+{question}
+Odpověď:""")
+        self.llm_chain = LLMChain(llm=reformulate_llm, prompt=reformulate_prompt)
+
+    def run(question):
+        return self.llm_chain.run(question=question)
 
 
 class QAHandler:
