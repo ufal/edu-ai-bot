@@ -7,11 +7,7 @@ import csv
 from logzero import logger
 from werkzeug.urls import url_fix
 from edubot.utils import dotdict
-<<<<<<< HEAD
 from edubot.cs_morpho import Generator, Analyzer
-=======
-from edubot.cs_morpho import Generator
->>>>>>> d68e775 (Fixing gender post-MT)
 
 
 class RemoteServiceHandler:
