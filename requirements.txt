@@ -9,10 +9,10 @@ pyyaml
 flask
 logzero
 sentence_transformers
-Levensthein
-fuzzywuzzy
 ufal.morphodita
 conllu
+fuzzywuzzy
+Levenshtein
 openai
 langchain
 aiml
