@@ -12,7 +12,7 @@ from edubot.cs_morpho import Generator, Analyzer
 
 class RemoteServiceHandler:
 
-    def __init__(self, config, stopwords):
+    def __init__(self, config):
         self.urls = config['URLs']
         with open(config['STOPWORDS_PATH'], 'rt') as fd:
             self.stopwords = set((w.strip() for w in fd.readlines() if len(w.strip()) > 0))
@@ -75,7 +75,7 @@ class RemoteServiceHandler:
 
         def regen_as_masc(tok):
             """Regenerate a given form as masculine."""
-            logger.debug(f'Regen as masc: ' + tok['lemma'])
+            # logger.debug(f'Regen as masc: ' + tok['lemma'])
             new_lemma = self.female_to_male.get(tok['lemma'], tok['lemma'])  # fem-masc lemma changes
             if tok['xpos'][:2] == 'Vs':  # morphodita x udpipe discrepancy in lemmas, get the morphodita lemma
                 new_lemma = self.tagger.analyze(tok['form'])[0][1]
@@ -92,10 +92,10 @@ class RemoteServiceHandler:
             """Recursively search for 1st person adjectives/verb participles and fix them."""
             # found 1st ps close by
             if is_1st_ps or tree.token['feats'].get('Person') == '1' or any([c.token['feats'].get('Person') == '1' for c in tree.children]):
-                logger.debug('Regen: ' + str(tree.token))
+                # logger.debug('Regen: ' + str(tree.token))
                 # it's gendered -- change gender of this one
                 if tree.token['feats'].get('Gender') in ['Fem', 'Fem,Neut']:
-                    logger.debug('Hit: ' + str(tree.token))
+                    # logger.debug('Hit: ' + str(tree.token))
                     regen_as_masc(tree.token)
                 # recurse into children
                 for c in tree.children:
@@ -104,7 +104,7 @@ class RemoteServiceHandler:
                         and ((c.token['deprel'] in ['conj', 'amod', 'xcomp', 'cop', 'aux:pass'])
                              # oblique argument (instrumental) for verbs of appointment/identity
                              or (tree.token['lemma'] in self.identity_verbs and c.token['deprel'] in ['obl:arg', 'obl']))):
-                            logger.debug(f'Regen {c.token["deprel"]}: ' + str(c.token))
+                            # logger.debug(f'Regen {c.token["deprel"]}: ' + str(c.token))
                             fix_person(c, is_1st_ps=True)
 
             # XXX could skip the children already fixed above, but maybe too much bother?
