@@ -25,3 +25,9 @@ To retrain the intent classifier, run the following command (default parameters,
 ```shell
 python -m educlf.train --data_fn data/merged_intents.tsv --model robeczech --out_dir $(pwd)/trained_classifierXY
 ```
+
+## Evaluate QA
+
+```shell
+python -m scripts.evaluate --eval_file data/edubot-data-augmented.json --data_root data/ --data_type edubot --config configs/default_config.yaml
+```

@@ -26,7 +26,7 @@ class OpenAIQA:
         assert 'context' in kwarg_dict and 'question' in kwarg_dict
         logger.debug(f'OpenAI query {str(kwarg_dict)}')
         response = self.llm_answer_chain.run(**kwarg_dict)
-        return response.strip(), kwarg_dict['context']
+        return response.strip(), 1.0  # scores are not implemented in LangChain yet (https://github.com/hwchase17/langchain/issues/1063)
 
 class OpenAIReformulate:
 

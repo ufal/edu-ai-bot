@@ -131,7 +131,7 @@ if __name__ == '__main__':
         qa_model = pipeline("multitask-qa-qg",
                             os.path.join(config['QA_MODEL_PATH'], "checkpoint-185000"),
                             os.path.join(config['QA_MODEL_PATH'], "mt5_qg_tokenizer"),
-                            use_cuda=args.cuda)
+                            use_cuda=cuda_available)
     else:
         logger.warning('Could not find QA directory, will run without it')
         qa_model = None

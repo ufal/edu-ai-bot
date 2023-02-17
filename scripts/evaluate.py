@@ -146,6 +146,9 @@ if __name__ == '__main__':
     ap.add_argument('--data_root', type=str, help='Evaluation data root directory')
     ap.add_argument('--data_type',type=str, help='The format of evaluation data. Can be [cs-SQuAD|SQAD|edubot]')
     ap.add_argument('--config', type=str, default='configs/default_config.yaml', help='Path to config file')
+    ap.add_argument('--cuda', action='store_true', help='Use GPU (true by default)')
+    ap.add_argument('--no-cuda', dest='cuda', action='store_false')
+    ap.set_defaults(cuda=True)
 
     args = ap.parse_args()
     parser = DataParser.parser_factory(args.data_type, args.data_root, first_paragraph_only=True)
@@ -154,9 +157,8 @@ if __name__ == '__main__':
     logger.info(f"Loading config from: {args.config}")
     with open(args.config, 'rt') as fd:
         custom_config = yaml.load(fd, Loader=SafeLoader)
-    with open(custom_config['STOPWORDS_PATH'], 'rt') as fd:
-        stopwords = set((w.strip() for w in fd.readlines() if len(w.strip()) > 0))
-    remote_service_handler = RemoteServiceHandler(custom_config, stopwords)
+    cuda_available = args.cuda and torch.cuda.is_available()
+    remote_service_handler = RemoteServiceHandler(custom_config)
     if 'openai/' in custom_config['QA_MODEL_PATH']:
         qa_model = OpenAIQA(custom_config['QA_MODEL_PATH'].split('/')[-1])
     elif os.path.isdir(custom_config['QA_MODEL_PATH']):
@@ -165,7 +167,7 @@ if __name__ == '__main__':
         qa_model = pipeline("multitask-qa-qg",
                             os.path.join(custom_config['QA_MODEL_PATH'], "checkpoint-185000"),
                             os.path.join(custom_config['QA_MODEL_PATH'], "mt5_qg_tokenizer"),
-                            use_cuda=args.cuda)
+                            use_cuda=cuda_available)
     else:
         logger.warning('Could not find QA directory, will run without it')
         qa_model = None
