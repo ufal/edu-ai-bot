@@ -16,9 +16,11 @@ from flask import request, jsonify
 from logzero import logger
 
 from edubot.remote_services import RemoteServiceHandler
-from edubot.qa import QAHandler
-from edubot.chitchat import Seq2SeqChitchatHandler, DummyChitchatHandler
+from edubot.qa import QAHandler, OpenAIQA, OpenAIReformulate
+from edubot.chitchat.seq2seq import Seq2SeqChitchatHandler, DummyChitchatHandler
+from edubot.chitchat.aiml_chitchat import AIMLChitchat
 from edubot.educlf.model import IntentClassifierModel
+from langchain import OpenAI, PromptTemplate, LLMChain
 
 
 app = flask.Flask(__name__)
@@ -41,11 +43,14 @@ def ask():
     if force_wiki or query.startswith('/w'):
         query = re.sub(r'^/w\s+', '', query)
         intent, intent_conf = 'qawiki', 1.0
+    elif query.startswith('/c'):
+        query = re.sub(r'^/w\s+', '', query)
+        intent, intent_conf = 'chch', 1.0
     else:
         intent, intent_conf = intent_clf_model.predict_example(query)[0] if intent_clf_model else (None, None)
     logger.info(f"Intent: {intent} ({intent_conf})")
 
-    if intent in custom_config['CHITCHAT_INTENTS']:
+    if intent in config['CHITCHAT_INTENTS']:
         response = chitchat_handler.ask_chitchat(query, conv_id)
     elif intent in handcrafted_responses:
         available_responses = handcrafted_responses[intent]
@@ -71,8 +76,8 @@ def ask():
         'intent': intent
     }
     # file logging
-    if ('LOGFILE_PATH' in custom_config) and (custom_config['LOGFILE_PATH'] is not None):
-        logger.info(f"Logging into {custom_config['LOGFILE_PATH']}")
+    if ('LOGFILE_PATH' in config) and (config['LOGFILE_PATH'] is not None):
+        logger.info(f"Logging into {config['LOGFILE_PATH']}")
         log_data = {'timestamp': str(datetime.datetime.now()),
                     'request': {'remote_addr': request.remote_addr,
                                 'url': request.url,
@@ -82,7 +87,7 @@ def ask():
                                  'context': context,
                                  'intent': intent,
                                  'korektor': query}}
-        with open(custom_config['LOGFILE_PATH'], 'a', encoding='UTF_8') as fh:
+        with open(config['LOGFILE_PATH'], 'a', encoding='UTF_8') as fh:
             fh.write(json.dumps(log_data, ensure_ascii=False) + "\n")
             fh.flush()
 
@@ -106,65 +111,42 @@ if __name__ == '__main__':
     # get config
     logger.info(f"Loading config from: {args.config}")
     with open(args.config, 'rt') as fd:
-        custom_config = yaml.load(fd, Loader=SafeLoader)
-    custom_config['LOGFILE_PATH'] = args.logfile
-
+        config = yaml.load(fd, Loader=SafeLoader)
+    config['LOGFILE_PATH'] = args.logfile
 
     # set default device based on CUDA config
-    cuda_available = args.cuda and torch.cuda.is_available()
-    logger.info(f"Running on {'gpu' if cuda_available else 'cpu'}")
-    device = torch.device('cuda') if cuda_available else torch.device('cpu:0')
+    device = torch.device('cuda') if (args.cuda and torch.cuda.is_available()) else torch.device('cpu:0')
+    logger.info(f"Running on {device}")
 
     # load remote services handler
-    with open(custom_config['STOPWORDS_PATH'], 'rt') as fd:
-        stopwords = set((w.strip() for w in fd.readlines() if len(w.strip()) > 0))
-    remote_service_handler = RemoteServiceHandler(custom_config, stopwords)
+    remote_service_handler = RemoteServiceHandler(config)
 
     # load QA
-    if custom_config['QA_HUGGINGFACE']:
-        qa_model = custom_config['QA_MODEL_PATH']
-    elif os.path.isdir(custom_config['QA_MODEL_PATH']):
-        from multilingual_qaqg.mlpipelines import pipeline
-
-        qa_model = pipeline("multitask-qa-qg",
-                            os.path.join(custom_config['QA_MODEL_PATH'], "checkpoint-185000"),
-                            os.path.join(custom_config['QA_MODEL_PATH'], "mt5_qg_tokenizer"),
-                            use_cuda=args.cuda)
-    else:
-        logger.warning('Could not find QA directory, will run without it')
-        qa_model = None
-
-    if custom_config['SENTENCE_REPR_MODEL'].lower() in ['robeczech', 'eleczech']:
-        from edubot.educlf.model import IntentClassifierModel
-        sentence_repr_model = IntentClassifierModel(custom_config['SENTENCE_REPR_MODEL'],
-                                                    device,
-                                                    label_mapping=None,
-                                                    out_dir=None)
-    else:
-        from sentence_transformers import SentenceTransformer
-        sentence_repr_model = SentenceTransformer(custom_config['SENTENCE_REPR_MODEL'],
-                                                  device=device)
-    qa_handler = QAHandler(qa_model, sentence_repr_model, remote_service_handler, custom_config['QA_HUGGINGFACE'])
+    qa_handler = QAHandler(config, remote_service_handler, device)
 
     # load chitchat
-    if custom_config.get('CHITCHAT', {'MODEL': None})['MODEL']:
-        chitchat_handler = Seq2SeqChitchatHandler(custom_config['CHITCHAT'],
+    chitchat_model_name = config.get('CHITCHAT', {'MODEL': None})['MODEL']
+    if chitchat_model_name == "AIML":
+        chitchat_handler = AIMLChitchat(config, remote_service_handler)
+    elif chitchat_model_name:
+        chitchat_handler = Seq2SeqChitchatHandler(chitchat_model_name,
                                                   remote_service_handler,
                                                   device)
     else:
         logger.warning('No chitchat model defined, will run without it')
         chitchat_handler = DummyChitchatHandler()
+    logger.info(f'Chitchat model: {chitchat_model_name} / {str(type(chitchat_handler))}')
 
     # load intent classifier
-    intent_clf_model = IntentClassifierModel(None, device, None, None, custom_config)
+    intent_clf_model = IntentClassifierModel(None, device, None, None, config)
     intent_clf_model.load_from()
 
     # load handcrafted responses
-    if not os.path.exists(custom_config['HC_RESPONSES_PATH']):
+    if not os.path.exists(config['HC_RESPONSES_PATH']):
         logger.warning('Could not find handcrafted responses, will run without them.')
         handcrafted_responses = dict()
     else:
-        with open(custom_config['HC_RESPONSES_PATH'], 'rt') as fd:
+        with open(config['HC_RESPONSES_PATH'], 'rt') as fd:
             handcrafted_responses = yaml.load(fd, Loader=SafeLoader)
 
     # run the stuff

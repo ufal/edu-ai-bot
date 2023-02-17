@@ -83,6 +83,14 @@ class SqadParser(DataParser):
 
 class EdubotParser(DataParser):
 
+    def load_from_file(self, data_file):
+        if data_file.endswith('.tsv'):
+            self.load_from_tsv_file(data_file)
+        elif data_file.endswith('.json'):
+            self.load_from_json(data_file)
+        else:
+            raise NotImplementedError(f'Unknown file type: {data_file}')
+
     def load_from_tsv_file(self, data_file):
         with open(data_file, 'rt', newline='') as infd:
             reader = csv_reader(infd, delimiter='\t')
@@ -98,7 +106,7 @@ class EdubotParser(DataParser):
                           'id': str(n),
                           'title': row[6]} for n, row in enumerate(reader)]
 
-    def load_from_file(self, data_file):
+    def load_from_json(self, data_file):
         with open(data_file, 'rt') as fd:
             for line in fd:
                 entry = json.loads(line)

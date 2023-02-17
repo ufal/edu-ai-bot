@@ -2,24 +2,122 @@ from typing import Text, Iterable, Tuple, Dict, Any, List
 from logzero import logger
 from scipy.spatial.distance import cosine
 from transformers import AutoTokenizer, AutoModelForQuestionAnswering
+import os
+from langchain import OpenAI, PromptTemplate, LLMChain
+
+
+class OpenAIQA:
+    def __init__(self, model_name):
+        answer_llm = OpenAI(model_name=model_name,
+                            temperature=0,
+                            top_p=0.8,
+                            openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
+        answer_prompt = PromptTemplate(input_variables=['context', 'question'],
+                                       template="""Odpověz na otázku s využitím kontextu.
+        Využij pouze informace z kontextu, kopíruj text co nejvíc je to možné.
+        Buď stručný a odpověz maximálně jednou větou. Nepoužívej více vět.
+        Kontext:
+        {context}
+        Otázka:
+        {question}
+        Odpověď:""")
+        self.llm_answer_chain = LLMChain(llm=answer_llm, prompt=answer_prompt)
+
+    def __call__(self, kwarg_dict: Dict[Text, Any]) -> Tuple[Text, Text]:
+        assert 'context' in kwarg_dict and 'question' in kwarg_dict
+        logger.debug(f'OpenAI query {str(kwarg_dict)}')
+        response = self.llm_answer_chain.run(**kwarg_dict)
+        return response.strip(), 1.0  # scores are not implemented in LangChain yet (https://github.com/hwchase17/langchain/issues/1063)
+
+
+class OpenAIReformulate:
+
+    def __init__(self, model_name):
+        reformulate_llm = OpenAI(model_name=reformulate_model_name,
+                                 temperature=0,
+                                 top_p=0.8,
+                                 openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
+        reformulate_prompt = PromptTemplate(input_variables=['question'],
+                                            template="""Začni odpověď na otázku.
+Otázka:
+{question}
+Odpověď:""")
+        self.llm_chain = LLMChain(llm=reformulate_llm, prompt=reformulate_prompt)
+
+    def run(question):
+        return self.llm_chain.run(question=question)
+
+
+class HuggingFaceQA:
+
+    def __init__(self, model_name, device):
+        self.device = device
+        self.model = AutoModelForQuestionAnswering.from_pretrained(model_name).to(device)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+    def __call__(self, kwarg_dict):
+        question, context = kwarg_dict['question'], kwarg_dict['context']
+        inputs = self.tokenizer(question, context, return_tensors = "pt")
+        outputs = self.model(**inputs.to(self.device))
+        start_position = outputs.start_logits[0].argmax()
+        end_position = outputs.end_logits[0].argmax()
+        answer_ids = inputs["input_ids"][0][start_position:end_position]
+        response = self.tokenizer.decode(answer_ids)
+        return response, 1.0 # TODO fix confidence scores somehow
 
 
 class QAHandler:
 
-    def __init__(self, qa_model, repr_model, remote_service_handler, is_huggingface=False):
-        if is_huggingface:
-            self.qa_model = AutoModelForQuestionAnswering.from_pretrained(qa_model)
-            self.hf_tokenizer = AutoTokenizer.from_pretrained(qa_model)
-        else:
-            self.qa_model = qa_model
-            self.hf_tokenizer = None
-        self.repr_model = repr_model
+    def __init__(self, config, remote_service_handler, device):
+
         self.remote_service_handler = remote_service_handler
+
+        # load QA model
+        if config['QA']['MODEL_TYPE'] == 'huggingface':
+            self.qa_model = HuggingFaceQA(config['QA']['HUGGINGFACE_MODEL'], device)
+        elif config['QA']['MODEL_TYPE'] == 'openai':
+            self.qa_model = OpenAIQA(config['QA']['OPENAI_MODEL'])
+        elif config['QA']['MODEL_TYPE'] == 'local' and os.path.isdir(config['QA']['LOCAL_MODEL']):
+            from multilingual_qaqg.mlpipelines import pipeline
+
+            self.qa_model = pipeline("multitask-qa-qg",
+                                     os.path.join(config['QA']['LOCAL_MODEL'], "checkpoint-185000"),
+                                     os.path.join(config['QA']['LOCAL_MODEL'], "mt5_qg_tokenizer"),
+                                     use_cuda=(device.type == 'cuda'))
+        else:
+            logger.warning('Could not find valid QA model setting, will run without it')
+            self.qa_model = None
+        logger.info(f'QA model: {config["QA"]["MODEL_TYPE"]} / {config["QA"][config["QA"]["MODEL_TYPE"].upper() + "_" + "MODEL"]} / {str(type(self.qa_model))}')
+
+        if config['SENTENCE_REPR_MODEL'].lower() in ['robeczech', 'eleczech']:
+            from edubot.educlf.model import IntentClassifierModel
+            self.repr_model = IntentClassifierModel(config['SENTENCE_REPR_MODEL'],
+                                                    device,
+                                                    label_mapping=None,
+                                                    out_dir=None)
+        else:
+            from sentence_transformers import SentenceTransformer
+            self.repr_model = SentenceTransformer(config['SENTENCE_REPR_MODEL'],
+                                                      device=device)
+        logger.info(f'Sentence repr model: {config["SENTENCE_REPR_MODEL"]} / {str(type(self.repr_model))}')
+
+        reformulate_model_path = config.get('REFORMULATE_MODEL_PATH', None)
+        if reformulate_model_path is not None and 'openai/' in reformulate_model_path:
+            self.reformulate_model = OpenAIReformulate(reformulate_model_path.split('/')[-1])
+        else:
+            self.reformulate_model = None
+        logger.info(f'Reformulate model: {reformulate_model_path} / {str(type(self.reformulate_model))}')
 
     def apply_qa(self, query, context=None, exact=False):
         """Main QA entry point, running the query & models."""
-
-        filtered_query_nac, filtered_query_nacv, query_type = self.remote_service_handler.filter_query(query)
+        if self.reformulate_model is not None:
+            reformulated_query = self.reformulate_model.run(question=query) or query
+        else:
+            reformulated_query = query
+        filtered_query_nac, filtered_query_nacv, query_type =\
+            self.remote_service_handler.filter_query(reformulated_query)
+        if isinstance(self.qa_model, OpenAIQA):
+            query_type = 'default'
         logger.info(f'Q: {query} | F: {filtered_query_nac} | {filtered_query_nacv}')
 
         if not context and filtered_query_nacv:
@@ -55,17 +153,9 @@ class QAHandler:
         if exact and query_type == 'default' and self.qa_model:
             if not context:
                 context = chosen_answer['first_paragraph']
-            if self.hf_tokenizer:
-                inputs = self.hf_tokenizer(query, context, return_tensors = "pt")
-                outputs = self.qa_model(**inputs)
-                start_position = outputs.start_logits[0].argmax()
-                end_position = outputs.end_logits[0].argmax()
-                answer_ids = inputs["input_ids"][0][start_position:end_position]
-                response = self.hf_tokenizer.decode(answer_ids)
-            else:
-                response, _ = self.qa_model({'question': query, 'context': context})
+            response, _ = self.qa_model({'question': query, 'context': context})
             return context, response, title, chosen_answer["url"]
-        return chosen_answer["first_paragraph"], None, title, chosen_answer["url"]
+        return chosen_answer['first_paragraph'], None, title, chosen_answer["url"]
 
     def rank_utterance_list_by_similarity(self, reference: Text, candidates: Iterable[Tuple[Text, Any]])\
             -> List[Tuple[float, Dict[Text, Text]]]:

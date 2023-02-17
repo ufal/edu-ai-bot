@@ -1,1 +1,1 @@
-from parsers import DataParser, CsSquadParser
+from edubot.eval.parsers import DataParser, CsSquadParser
