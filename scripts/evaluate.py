@@ -156,54 +156,11 @@ if __name__ == '__main__':
 
     logger.info(f"Loading config from: {args.config}")
     with open(args.config, 'rt') as fd:
-        custom_config = yaml.load(fd, Loader=SafeLoader)
-    cuda_available = args.cuda and torch.cuda.is_available()
-    remote_service_handler = RemoteServiceHandler(custom_config)
-    if 'openai/' in custom_config['QA_MODEL_PATH']:
-        qa_model = OpenAIQA(custom_config['QA_MODEL_PATH'].split('/')[-1])
-    elif os.path.isdir(custom_config['QA_MODEL_PATH']):
-        from multilingual_qaqg.mlpipelines import pipeline
+        config = yaml.load(fd, Loader=SafeLoader)
 
-        qa_model = pipeline("multitask-qa-qg",
-                            os.path.join(custom_config['QA_MODEL_PATH'], "checkpoint-185000"),
-                            os.path.join(custom_config['QA_MODEL_PATH'], "mt5_qg_tokenizer"),
-                            use_cuda=cuda_available)
-    else:
-        logger.warning('Could not find QA directory, will run without it')
-        qa_model = None
+    remote_service_handler = RemoteServiceHandler(config)
 
-    cuda_available = torch.cuda.is_available()
-    device = torch.device('cuda') if cuda_available else torch.device('cpu:0')
-    if custom_config['SENTENCE_REPR_MODEL'].lower() in ['robeczech', 'eleczech']:
-        from edubot.educlf.model import IntentClassifierModel
+    device = torch.device('cuda') if (args.cuda and torch.cuda.is_available()) else torch.device('cpu:0')
+    qa_handler = QAHandler(config, remote_service_handler, device)
 
-        sentence_repr_model = IntentClassifierModel(custom_config['SENTENCE_REPR_MODEL'],
-                                                    device,
-                                                    label_mapping=None,
-                                                    out_dir=None)
-    else:
-        from sentence_transformers import SentenceTransformer
-
-        sentence_repr_model = SentenceTransformer(custom_config['SENTENCE_REPR_MODEL'],
-                                                  device=device)
-    reformulate_model_path = custom_config.get('REFORMULATE_MODEL_PATH', None)
-    if reformulate_model_path is not None and 'openai/' in reformulate_model_path:
-        reformulate_model_name = reformulate_model_path.split('/')[-1]
-        reformulate_llm = OpenAI(model_name=reformulate_model_name,
-                                 temperature=0,
-                                 top_p=0.8,
-                                 openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
-        reformulate_prompt = PromptTemplate(input_variables=['question'],
-                                            template="""Začni odpověď na otázku.
-    Otázka:
-    {question}
-    Odpověď:""")
-        reformulate_model = LLMChain(llm=reformulate_llm, prompt=reformulate_prompt)
-    else:
-        reformulate_model = None
-
-    qa_handler = QAHandler(qa_model,
-                           sentence_repr_model,
-                           remote_service_handler,
-                           reformulate_model)
     run_on_data(parser.data, qa_handler)

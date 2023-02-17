@@ -115,51 +115,14 @@ if __name__ == '__main__':
     config['LOGFILE_PATH'] = args.logfile
 
     # set default device based on CUDA config
-    cuda_available = args.cuda and torch.cuda.is_available()
-    logger.info(f"Running on {'gpu' if cuda_available else 'cpu'}")
-    device = torch.device('cuda') if cuda_available else torch.device('cpu:0')
+    device = torch.device('cuda') if (args.cuda and torch.cuda.is_available()) else torch.device('cpu:0')
+    logger.info(f"Running on {device}")
 
     # load remote services handler
     remote_service_handler = RemoteServiceHandler(config)
 
     # load QA
-    if 'openai/' in config['QA_MODEL_PATH']:
-        qa_model = OpenAIQA(config['QA_MODEL_PATH'].split('/')[-1])
-    elif os.path.isdir(config['QA_MODEL_PATH']):
-        from multilingual_qaqg.mlpipelines import pipeline
-
-        qa_model = pipeline("multitask-qa-qg",
-                            os.path.join(config['QA_MODEL_PATH'], "checkpoint-185000"),
-                            os.path.join(config['QA_MODEL_PATH'], "mt5_qg_tokenizer"),
-                            use_cuda=cuda_available)
-    else:
-        logger.warning('Could not find QA directory, will run without it')
-        qa_model = None
-    logger.info(f'QA model: {config["QA_MODEL_PATH"]} / {str(type(qa_model))}')
-
-    if config['SENTENCE_REPR_MODEL'].lower() in ['robeczech', 'eleczech']:
-        from edubot.educlf.model import IntentClassifierModel
-        sentence_repr_model = IntentClassifierModel(config['SENTENCE_REPR_MODEL'],
-                                                    device,
-                                                    label_mapping=None,
-                                                    out_dir=None)
-    else:
-        from sentence_transformers import SentenceTransformer
-        sentence_repr_model = SentenceTransformer(config['SENTENCE_REPR_MODEL'],
-                                                  device=device)
-    logger.info(f'Sentence repr model: {config["SENTENCE_REPR_MODEL"]} / {str(type(sentence_repr_model))}')
-
-    reformulate_model_path = config.get('REFORMULATE_MODEL_PATH', None)
-    if reformulate_model_path is not None and 'openai/' in reformulate_model_path:
-        reformulate_model = OpenAIReformulate(reformulate_model_path.split('/')[-1])
-    else:
-        reformulate_model = None
-    logger.info(f'Reformulate model: {reformulate_model_path} / {str(type(reformulate_model))}')
-
-    qa_handler = QAHandler(qa_model,
-                           sentence_repr_model,
-                           remote_service_handler,
-                           reformulate_model)
+    qa_handler = QAHandler(config, remote_service_handler, device)
 
     # load chitchat
     chitchat_model_name = config.get('CHITCHAT', {'MODEL': None})['MODEL']

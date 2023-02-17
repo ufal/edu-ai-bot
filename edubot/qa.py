@@ -1,9 +1,10 @@
 from typing import Text, Iterable, Tuple, Dict, Any, List
 from logzero import logger
 from scipy.spatial.distance import cosine
+from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 import os
-
 from langchain import OpenAI, PromptTemplate, LLMChain
+
 
 class OpenAIQA:
     def __init__(self, model_name):
@@ -28,6 +29,7 @@ class OpenAIQA:
         response = self.llm_answer_chain.run(**kwarg_dict)
         return response.strip(), 1.0  # scores are not implemented in LangChain yet (https://github.com/hwchase17/langchain/issues/1063)
 
+
 class OpenAIReformulate:
 
     def __init__(self, model_name):
@@ -46,14 +48,65 @@ Odpověď:""")
         return self.llm_chain.run(question=question)
 
 
+class HuggingFaceQA:
+
+    def __init__(self, model_name, device):
+        self.device = device
+        self.model = AutoModelForQuestionAnswering.from_pretrained(model_name).to(device)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+    def __call__(self, kwarg_dict):
+        question, context = kwarg_dict['question'], kwarg_dict['context']
+        inputs = self.tokenizer(question, context, return_tensors = "pt")
+        outputs = self.model(**inputs.to(self.device))
+        start_position = outputs.start_logits[0].argmax()
+        end_position = outputs.end_logits[0].argmax()
+        answer_ids = inputs["input_ids"][0][start_position:end_position]
+        response = self.tokenizer.decode(answer_ids)
+        return response, 1.0 # TODO fix confidence scores somehow
+
+
 class QAHandler:
 
-    def __init__(self, qa_model, repr_model, remote_service_handler, reformulate_model=None):
-        self.qa_model = qa_model
-        self.repr_model = repr_model
-        self.remote_service_handler = remote_service_handler
-        self.reformulate_model = reformulate_model
+    def __init__(self, config, remote_service_handler, device):
 
+        self.remote_service_handler = remote_service_handler
+
+        # load QA model
+        if config['QA']['MODEL_TYPE'] == 'huggingface':
+            self.qa_model = HuggingFaceQA(config['QA']['HUGGINGFACE_MODEL'], device)
+        elif config['QA']['MODEL_TYPE'] == 'openai':
+            self.qa_model = OpenAIQA(config['QA']['OPENAI_MODEL'])
+        elif config['QA']['MODEL_TYPE'] == 'local' and os.path.isdir(config['QA']['LOCAL_MODEL']):
+            from multilingual_qaqg.mlpipelines import pipeline
+
+            self.qa_model = pipeline("multitask-qa-qg",
+                                     os.path.join(config['QA']['LOCAL_MODEL'], "checkpoint-185000"),
+                                     os.path.join(config['QA']['LOCAL_MODEL'], "mt5_qg_tokenizer"),
+                                     use_cuda=(device.type == 'cuda'))
+        else:
+            logger.warning('Could not find valid QA model setting, will run without it')
+            self.qa_model = None
+        logger.info(f'QA model: {config["QA"]["MODEL_TYPE"]} / {config["QA"][config["QA"]["MODEL_TYPE"].upper() + "_" + "MODEL"]} / {str(type(self.qa_model))}')
+
+        if config['SENTENCE_REPR_MODEL'].lower() in ['robeczech', 'eleczech']:
+            from edubot.educlf.model import IntentClassifierModel
+            self.repr_model = IntentClassifierModel(config['SENTENCE_REPR_MODEL'],
+                                                    device,
+                                                    label_mapping=None,
+                                                    out_dir=None)
+        else:
+            from sentence_transformers import SentenceTransformer
+            self.repr_model = SentenceTransformer(config['SENTENCE_REPR_MODEL'],
+                                                      device=device)
+        logger.info(f'Sentence repr model: {config["SENTENCE_REPR_MODEL"]} / {str(type(self.repr_model))}')
+
+        reformulate_model_path = config.get('REFORMULATE_MODEL_PATH', None)
+        if reformulate_model_path is not None and 'openai/' in reformulate_model_path:
+            self.reformulate_model = OpenAIReformulate(reformulate_model_path.split('/')[-1])
+        else:
+            self.reformulate_model = None
+        logger.info(f'Reformulate model: {reformulate_model_path} / {str(type(self.reformulate_model))}')
 
     def apply_qa(self, query, context=None, exact=False):
         """Main QA entry point, running the query & models."""
