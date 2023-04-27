@@ -138,8 +138,10 @@ if __name__ == '__main__':
     logger.info(f'Chitchat model: {chitchat_model_name} / {str(type(chitchat_handler))}')
 
     # load intent classifier
-    intent_clf_model = IntentClassifierModel(None, device, None, None, config)
-    intent_clf_model.load_from()
+    intent_clf_model = None
+    if "INTENT_MODEL" in config:
+        intent_clf_model = IntentClassifierModel(None, device, None, None, config)
+        intent_clf_model.load_from()
 
     # load handcrafted responses
     if not os.path.exists(config['HC_RESPONSES_PATH']):
