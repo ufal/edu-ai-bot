@@ -32,6 +32,12 @@ class AIMLChitchat:
         logger.debug(f"EN Question: {en_transl}")
         response = self.kernel.respond(en_transl)
         logger.debug(f"EN Answer: {response}")
+        if not response:
+            # trying without context
+            response = self.kernel.respond("random pickup line")
+            logger.debug(f"EN Backup Answer: {response}")
+        if not response:
+            response = random.choice(['Go on.', 'Oh, right.', 'I see.', 'I\'m not sure I understand you.'])
         cs_transl = self.remote_service_handler.translate_en2cs(response)
         logger.debug(f"CS Answer: {cs_transl}")
         return cs_transl
