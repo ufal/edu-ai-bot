@@ -26,7 +26,12 @@ class OpenAIQA:
     def __call__(self, kwarg_dict: Dict[Text, Any]) -> Tuple[Text, Text]:
         assert 'context' in kwarg_dict and 'question' in kwarg_dict
         logger.debug(f'OpenAI query {str(kwarg_dict)}')
-        response = self.llm_answer_chain.run(**kwarg_dict)
+        try:
+            response = self.llm_answer_chain.run(**kwarg_dict)
+        except Exception as e:
+            logger.error('Exception in OpenAI/Langchain')
+            logger.exception(e)
+            response = 'Toto by možná mohlo pomoct: ' + kwarg_dict['context']
         return response.strip(), 1.0  # scores are not implemented in LangChain yet (https://github.com/hwchase17/langchain/issues/1063)
 
 
