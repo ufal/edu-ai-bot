@@ -1,3 +1,4 @@
+import re
 import sys
 sys.path.append('../')
 import logzero
@@ -6,6 +7,7 @@ import os
 from argparse import ArgumentParser
 import torch
 import time
+import requests
 import yaml
 from yaml.loader import SafeLoader
 from logzero import logger
@@ -16,6 +18,11 @@ from nltk.tokenize import word_tokenize
 from edubot.remote_services import RemoteServiceHandler
 from edubot.qa import QAHandler, OpenAIQA
 from langchain import OpenAI, PromptTemplate, LLMChain
+
+def get_title_by_url(url):
+    resp = requests.get(url)
+    title = re.findall(r'<title>(.*?)</title>', resp.text)
+    return title[0] if title else None
 
 
 def evaluate_answer(answer, context, gt_answer, gt_context=None):
@@ -64,7 +71,8 @@ def run_on_data(data, qa_handler):
                                     'answer_token_ratio': [],
                                     'answer_context_token_ratio': [],
                                     'context_bleu': [],
-                                    'context_token_ratio': []}
+                                    'context_token_ratio': [],
+                                    'url_accuracy': []}
     total_eval_results_gold = {'answer_f1': [],
                                'answer_context_f1': [],
                                'answer_bleu': [],
@@ -97,6 +105,8 @@ def run_on_data(data, qa_handler):
         exec_times.append(time.time() - st)
         st = time.time()
         pred_context, answer_pred_context, pred_title, url = qa_handler.apply_qa(qa['question'], None, exact=True)
+        pred_link = get_title_by_url(url)
+        gold_link = get_title_by_url(qa['link'])
         exec_times.append(time.time() - st)
         if answer_pred_context is None or answer_gold_context is None:
             logger.warning("None answer " + str(qa))
@@ -127,6 +137,7 @@ def run_on_data(data, qa_handler):
             eval_results_predicted['answer_context_token_ratio'] if eval_results_predicted['answer_context_token_ratio'] else 0)
         total_eval_results_predicted['context_bleu'].append(eval_results_predicted['context_bleu'] if eval_results_predicted['context_bleu'] else 0)
         total_eval_results_predicted['context_token_ratio'].append(eval_results_predicted['context_token_ratio'] if eval_results_predicted['context_token_ratio'] else 0)
+        total_eval_results_predicted['url_accuracy'].append(1 if pred_link == gold_link else 0)
 
         eval_results_gold = evaluate_answer(answer_gold_context, qa['context'], qa['answers'][0])
         total_eval_results_gold['answer_f1'].append(eval_results_gold['answer_f1'] if eval_results_gold['answer_f1'] else 0)
