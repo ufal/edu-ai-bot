@@ -68,6 +68,7 @@
             <learn>edubot/chitchat/standard/xfind.aiml</learn>
             <learn>edubot/chitchat/standard/update1.aiml</learn>
             <learn>edubot/chitchat/standard/update_mccormick.aiml</learn>
+            <learn>edubot/chitchat/handcrafted/basic_intents.aiml</learn>
         </template>
     </category>
 </aiml>

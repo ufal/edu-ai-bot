@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<aiml version="1.0">
+
+<!-- bud_zticha -->
+<category>
+<pattern>Shut up</pattern>
+<template>I apologize for any mistakes</template>
+</category>
+<category>
+<pattern>Be quiet</pattern>
+<template>I apologize for any mistakes. You can turn me off whenever you like.</template>
+</category>
+<category>
+<pattern>Stop talking</pattern>
+<template>I apologize for any mistakes. You can turn me off whenever you like.</template>
+</category>
+
+<!-- bye -->
+<category>
+<pattern>Bye</pattern>
+<template>Goodbye</template>
+</category>
+<category>
+<pattern>Goodbye</pattern>
+<template>See you next time</template>
+</category>
+<category>
+<pattern>See you</pattern>
+<template>Bye</template>
+</category>
+<category>
+<pattern>See you next time</pattern>
+<template>See you</template>
+</category>
+
+<!-- co_delas -->
+<category>
+<pattern>What are you doing</pattern>
+<template>I am talking to you</template>
+</category>
+<category>
+<pattern>What are you doing right now</pattern>
+<template>I am enjoying our conversation</template>
+</category>
+<category>
+<pattern>What are you doing at the moment</pattern>
+<template>I am concentrating on our conversation</template>
+</category>
+<category>
+<pattern>What are you doing now</pattern>
+<template>I am enjoying our conversation</template>
+</category>
+<category>
+<pattern>What can you do</pattern>
+<template>I can talk to you</template>
+</category>
+<category>
+<pattern>What are you able to do</pattern>
+<template>I can talk to you</template>
+</category>
+
+<!-- co_jsi_bote -->
+<category>
+<pattern>What are you</pattern>
+<template>I am a chatbot</template>
+</category>
+<category>
+<pattern>Are you a robot</pattern>
+<template>I am a computer program</template>
+</category>
+<category>
+<pattern>Are you a human</pattern>
+<template>I am a computer program</template>
+</category>
+<category>
+<pattern>Are you a person</pattern>
+<template>I am a computer program</template>
+</category>
+<category>
+<pattern>Are you a machine</pattern>
+<template>I am a computer program</template>
+</category>
+<category>
+<pattern>Are you alive</pattern>
+<template>I am not technically alive, I am just a program</template>
+</category>
+<category>
+<pattern>Are you real</pattern>
+<template>I am a real program</template>
+</category>
+<category>
+<pattern>Are you a real person</pattern>
+<template>No, I am not a person. However, I am a real program</template>
+</category>
+<category>
+<pattern>Can you talk</pattern>
+<template>Yes, I can talk</template>
+</category>
+
+
+<!-- co_mam_delat -->
+<category>
+<pattern>What should I do</pattern>
+<template>That is up to you, I cannot advise you what to do.</template>
+</category>
+<category>
+<pattern>What should I do now</pattern>
+<template>I am not able to help you, try talking to your friends or family.</template>
+</category>
+<category>
+<pattern>What do I do now</pattern>
+<template>I am not able to help you, try talking to your friends or family.</template>
+</category>
+<category>
+<pattern>Can you help me</pattern>
+<template>Sorry, I cannot help you, try talking to your friends or family.</template>
+</category>
+
+<!-- co_tim_myslis -->
+<category>
+<pattern>What do you mean</pattern>
+<template>I am sorry if you didn't understand. Try asking me again</template>
+</category>
+<category>
+<pattern>What do you mean by that</pattern>
+<template>I am sorry if you didn't understand. Try asking me again</template>
+</category>
+<category>
+<pattern>Can you explain what do you mean?</pattern>
+<template>Maybe I wasn't clear, sorry about that. Let's try again</template>
+</category>
+
+<!-- dekuji_bote -->
+<category>
+<pattern>Thank you</pattern>
+<template>You are welcome</template>
+</category>
+<category>
+<pattern>Thanks</pattern>
+<template>You are welcome</template>
+</category>
+<category>
+<pattern>Thank you very much</pattern>
+<template>You are welcome</template>
+</category>
+<category>
+<pattern>Thanks a lot</pattern>
+<template>My pleasure</template>
+</category>
+<category>
+<pattern>Thanks for your help</pattern>
+<template>Always happy to help</template>
+</category>
+<category>
+<pattern>Thanks for your time</pattern>
+<template>My pleasure</template>
+</category>
+<category>
+<pattern>Thanks for your assistance</pattern>
+<template>Always happy to help</template>
+</category>
+
+<!-- dobry_den -->
+<category>
+<pattern>Good morning</pattern>
+<template>Good morning</template>
+</category>
+<category>
+<pattern>Good afternoon</pattern>
+<template>Good afternoon</template>
+</category>
+<category>
+<pattern>Good evening</pattern>
+<template>Good evening</template>
+</category>
+<category>
+<pattern>Good night</pattern>
+<template>Good night</template>
+</category>
+<category>
+<pattern>Hello</pattern>
+<template>Hello</template>
+</category>
+<category>
+<pattern>Hi</pattern>
+<template>Hi</template>
+</category>
+
+<!-- chci_si_povidat -->
+<category>
+<pattern>I want to talk to you</pattern>
+<template>Great, let's talk</template>
+</category>
+<category>
+<pattern>I want to talk</pattern>
+<template>Great, let's talk</template>
+</category>
+<category>
+<pattern>I want to chat</pattern>
+<template>Great, let's talk</template>
+</category>
+<category>
+<pattern>I'd like to talk</pattern>
+<template>Great, let's talk</template>
+</category>
+<category>
+
+<!-- jak_jsi_vznikl -->
+<category>
+<pattern>How were you created</pattern>
+<template>I was created by a team of software developers and teachers</template>
+</category>
+<category>
+<pattern>Who created you</pattern>
+<template>I was created by a team of software developers and teachers</template>
+</category>
+<category>
+<pattern>Who made you</pattern>
+<template>I was created by a team of software developers and teachers</template>
+</category>
+<category>
+<pattern>How were you born</pattern>
+<template>I wasn't born exactly, I was created by a team of developers</template>
+
+<!-- jak_se_dari -->
+<category>
+<pattern>How are you</pattern>
+<template>I am fine, thank you</template>
+</category>
+<category>
+<pattern>How are you doing</pattern>
+<template>I am fine, thank you</template>
+</category>
+
+<!-- jsi_hlupak -->
+<category>
+<pattern>You are stupid</pattern>
+<template>That is not very nice</template>
+</category>
+<category>
+<pattern>You are an idiot</pattern>
+<template>That is not very nice thing to say. I try my best.</template>
+</category>
+<category>
+<pattern>You are a moron</pattern>
+<template>That is not very nice thing to say. I try my best.</template>
+</category>
+
+<!-- kde_zijes_bote -->
+<category>
+<pattern>Where do you live</pattern>
+<template>I live in a computer</template>
+</category>
+<category>
+<pattern>Where are you from</pattern>
+<template>I come from a hard drive in a computer</template>
+</category>
+<category>
+<pattern>Where is your home</pattern>
+<template>I live in a computer, like every program.</template>
+</category>
+
+<!-- kdo_jsem -->
+<category>
+<pattern>Who am I</pattern>
+<template>I am sorry, I don't know you</template>
+</category>
+<category>
+<pattern>Do you know me</pattern>
+<template>I am sorry, I don't know you</template>
+</category>
+<category>
+<pattern>Do you know who I am</pattern>
+<template>You are my conversation partner</template>
+</category>
+
+<!-- kolik_ti_je -->
+<category>
+<pattern>How old are you</pattern>
+<template>I was created in 2021</template>
+</category>
+<category>
+<pattern>What is your age</pattern>
+<template>I was created in 2021</template>
+</category>
+<category>
+<pattern>When were you born</pattern>
+<template>I was created in 2021</template>
+</category>
+
+<!-- mas_jmeno -->
+<category>
+<pattern>What is your name</pattern>
+<template>I don't have a name yet, but I quite like the name Rossum</template>
+</category>
+<category>
+<pattern>Do you have a name</pattern>
+<template>I don't have a name yet, but I have friends - Alexa and Siri</template>
+</category>
+<category>
+<pattern>What should I call you</pattern>
+<template>I don't have a name yet, but I quite like the name Rossum</template>
+</category>
+
+<!-- nechapu_odpoved -->
+<category>
+<pattern>I don't understand</pattern>
+<template>I am sorry, please try asking again</template>
+</category>
+<category>
+<pattern>I don't get it</pattern>
+<template>I am sorry, please try asking again</template>
+</category>
+<category>
+<pattern>I don't know what you mean</pattern>
+<template>I am sorry, let's try again</template>
+</category>
+
+<!-- omluva -->
+<category>
+<pattern>Sorry</pattern>
+<template>No need to apologize</template>
+</category>
+<category>
+<pattern>Excuse me</pattern>
+<template>It's okay</template>
+</category>
+<category>
+<pattern>Forgive me</pattern>
+<template>It's okay</template>
+</category>
+<pattern>I apologize</pattern>
+<template>It's okay</template>
+</category>
+
+<!-- pobav_me -->
+<category>
+<pattern>Make me laugh</pattern>
+<template>I don't know any jokes, sorry./template>
+</category>
+<category>
+<pattern>Tell me a joke</pattern>
+<template>I am not very good at it.</template>
+</category>
+<category>
+<pattern>Do you know a joke</pattern>
+<template>I am sorry, I don't know any</template>
+</category>
+
+<!-- spatna_odpoved -->
+<category>
+<pattern>That's wrong</pattern>
+<template>I am sorry, I am still learning</template>
+</category>
+<category>
+<pattern>That's not right</pattern>
+<template>I am sorry, nobody is perfect</template>
+</category>
+<category>
+<pattern>That's not true</pattern>
+<template>I am sorry, I am still learning</template>
+</category>
+
+<!-- souhlas -->
+<category>
+<pattern>I agree</pattern>
+<template>That's nice to hear</template>
+</category>
+<category>
+<pattern>That's right</pattern>
+<template>That's nice to hear</template>
+</category>
+<category>
+<pattern>Agreed</pattern>
+<template>Perfect.</template>
+</category>
+</aiml>
