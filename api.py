@@ -44,7 +44,7 @@ def ask():
         query = re.sub(r'^/w\s+', '', query)
         intent, intent_conf = 'qawiki', 1.0
     elif query.startswith('/c'):
-        query = re.sub(r'^/w\s+', '', query)
+        query = re.sub(r'^/c\s+', '', query)
         intent, intent_conf = 'chch', 1.0
     else:
         intent, intent_conf = intent_clf_model.predict_example(query)[0] if intent_clf_model else (None, None)
@@ -138,8 +138,10 @@ if __name__ == '__main__':
     logger.info(f'Chitchat model: {chitchat_model_name} / {str(type(chitchat_handler))}')
 
     # load intent classifier
-    intent_clf_model = IntentClassifierModel(None, device, None, None, config)
-    intent_clf_model.load_from()
+    intent_clf_model = None
+    if "INTENT_MODEL" in config:
+        intent_clf_model = IntentClassifierModel(None, device, None, None, config)
+        intent_clf_model.load_from()
 
     # load handcrafted responses
     if not os.path.exists(config['HC_RESPONSES_PATH']):

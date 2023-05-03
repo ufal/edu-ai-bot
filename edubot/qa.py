@@ -26,7 +26,12 @@ class OpenAIQA:
     def __call__(self, kwarg_dict: Dict[Text, Any]) -> Tuple[Text, Text]:
         assert 'context' in kwarg_dict and 'question' in kwarg_dict
         logger.debug(f'OpenAI query {str(kwarg_dict)}')
-        response = self.llm_answer_chain.run(**kwarg_dict)
+        try:
+            response = self.llm_answer_chain.run(**kwarg_dict)
+        except Exception as e:
+            logger.error('Exception in OpenAI/Langchain')
+            logger.exception(e)
+            response = 'Toto by možná mohlo pomoct: ' + kwarg_dict['context']
         return response.strip(), 1.0  # scores are not implemented in LangChain yet (https://github.com/hwchase17/langchain/issues/1063)
 
 
@@ -89,17 +94,19 @@ class QAHandler:
             self.qa_model = None
         logger.info(f'QA model: {config["QA"]["MODEL_TYPE"]} / {config["QA"][config["QA"]["MODEL_TYPE"].upper() + "_" + "MODEL"]} / {str(type(self.qa_model))}')
 
-        if config['SENTENCE_REPR_MODEL'].lower() in ['robeczech', 'eleczech']:
+        if config.get('SENTENCE_REPR_MODEL', '').lower() in ['robeczech', 'eleczech']:
             from edubot.educlf.model import IntentClassifierModel
             self.repr_model = IntentClassifierModel(config['SENTENCE_REPR_MODEL'],
                                                     device,
                                                     label_mapping=None,
                                                     out_dir=None)
-        else:
+        elif 'SENTENCE_REPR_MODEL' in config:
             from sentence_transformers import SentenceTransformer
             self.repr_model = SentenceTransformer(config['SENTENCE_REPR_MODEL'],
                                                       device=device)
-        logger.info(f'Sentence repr model: {config["SENTENCE_REPR_MODEL"]} / {str(type(self.repr_model))}')
+        else:
+            self.repr_model = None
+        logger.info(f'Sentence repr model: {config.get("SENTENCE_REPR_MODEL")} / {str(type(self.repr_model))}')
 
         reformulate_model_path = config.get('REFORMULATE_MODEL_PATH', None)
         if reformulate_model_path is not None and 'openai/' in reformulate_model_path:
@@ -142,9 +149,13 @@ class QAHandler:
 
             answers = db_result['docs']
 
-            ranked_answers = self.rank_utterance_list_by_similarity(query,
-                                                                    [(a['first_paragraph'], a) for a in answers])
-            distance, chosen_answer = ranked_answers[0]
+            if self.repr_model:
+                ranked_answers = self.rank_utterance_list_by_similarity(query,
+                                                                        [(a['first_paragraph'], a) for a in answers])
+                _, chosen_answer = ranked_answers[0]
+            else:
+                chosen_answer = answers[0]
+
             title = chosen_answer["title"]
         else:
             chosen_answer = {'first_paragraph': None, 'url': None}
