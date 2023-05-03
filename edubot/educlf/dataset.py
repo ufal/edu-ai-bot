@@ -4,7 +4,7 @@ from datasets import Dataset
 
 def load_data(fn):
     data = {'labels': [], 'utterance': []}
-    train_size = 0.8
+    train_size = 0.99
     raw_data = []
     with open(fn, 'rt', newline='', encoding='utf-8') as csvfd:
         datareader = csv_reader(csvfd, delimiter='\t')
