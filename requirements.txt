@@ -3,7 +3,7 @@ transformers
 datasets
 numpy
 scipy
-sklearn
+scikit-learn
 matplotlib
 pyyaml
 flask
