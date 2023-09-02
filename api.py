@@ -40,12 +40,17 @@ def ask():
     exact = request.json.get('exact')
     force_wiki = request.json.get('w')
     context, title, url = None, None, None
+
+    # classify intent, with overrides
     if force_wiki or query.startswith('/w'):
         query = re.sub(r'^/w\s+', '', query)
         intent, intent_conf = 'qawiki', 1.0
     elif query.startswith('/c'):
         query = re.sub(r'^/c\s+', '', query)
         intent, intent_conf = 'chch', 1.0
+    elif query.startswith('/P'):
+        intent, query = re.match(r'/([A-Za-z_]+) (.*)', query).groups()
+        intent_conf = 1.0
     else:
         intent, intent_conf = intent_clf_model.predict_example(query)[0] if intent_clf_model else (None, None)
     logger.info(f"Intent: {intent} ({intent_conf})")
