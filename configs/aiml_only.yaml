@@ -1,0 +1,42 @@
+URLs:
+    SOLR: "http://quest.ms.mff.cuni.cz/namuddis/qasolr/wiki_test/query?start=0&rows=10&q={query}&wt=json&fl=title,first_paragraph,url,score"
+    UDPIPE_TAG: "http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer&tagger&data={query}"
+    UDPIPE_PARSE: "http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer&tagger&parser&data={query}"
+    KOREKTOR: "http://lindat.mff.cuni.cz/services/korektor/api/correct"
+    WIKI: "https?//cs.wikipedia.org*"
+    LOGIC: "https?//www.logickaolympiada.cz*"
+    LINDAT_EN2CS: "https://lindat.mff.cuni.cz/services/translation/api/v2/models/en-cs?src=en&tgt=cs"
+    LINDAT_CS2EN: "https://lindat.mff.cuni.cz/services/translation/api/v2/models/cs-en?src=cs&tgt=en"
+QA:
+  MODEL_TYPE: "openai" # / "openai" / "local"
+  OPENAI_MODEL: "text-davinci-003"
+  HUGGINGFACE_MODEL: "gaussalgo/xlm-roberta-large_extractive-QA_en-cs"
+  LOCAL_MODEL: "multilingual_qaqg"
+REFORMULATE_MODEL_PATH: "" # "openai/text-yyyy-00x" or empty
+HC_RESPONSES_PATH: "data/handcrafted_responses.yml"
+CHITCHAT: 
+    # MODEL: "facebook/blenderbot-400M-distill"
+    MODEL: "AIML"
+    AIML_DATA_FILE: "edubot/chitchat/aiml_brain.dump"
+    AIML_STARTUP_FILE: "edubot/chitchat/std-startup.aiml"
+    AIML_BOT_PROPERTIES_FILE: "edubot/chitchat/aiml_bot_properties.tsv"
+    AIML_SUBSTITUTIONS_FILE: "edubot/chitchat/normal.substitution"  # combined https://github.com/pandorabots/rosie/blob/master/lib/substitutions/normal.substitution and https://github.com/pandorabots/aiml-utilities/blob/master/lib/emojinormal.txt
+    DECODE_PARAMS: {max_length: 100, temperature: 1.5,top_p: 0.9, repetition_penalty: 1.2, top_k: 50, do_sample: True, num_beams: 3}
+    FALLBACK_REPLIES:
+        - "Na tohle nemám odpověď. Můžeme změnít téma?"
+        - "Můžeme se bavit o něčem jiném?"
+        - "Pojďme změnit téma, co vás ještě zajímá?"
+    INAPPROPRIATE_KWS: ['date', 'kill', 'lonely', 'male', 'female',
+        'attracted', 'sex', 'transsexuality', 'attraction',
+        'desire', 'sexuality', 'shy', 'girl', 'boy', 'likes me', 'love you',
+        'girlfriend', 'boyfriend', 'friend', 'kids', 'children',
+        'wedding', 'married', 'accident', 'crash', 'die', 'dead', 'nigger', 'nigga',
+        'racist', 'race', 'fuck', 'shit', 'cunt', 'whore', 'bitch', 'use me', 'exploit',
+        'sucker']
+    MAXLEN: 127
+LOGFILE_PATH: None
+STOPWORDS_PATH: "data/stopwords.txt"
+GENDERED_WORDS_PATH: "data/gendered_words.tsv"
+IDENTITY_VERBS_PATH: "data/identity_verbs.txt"
+CHITCHAT_INTENTS:
+    - "chch"

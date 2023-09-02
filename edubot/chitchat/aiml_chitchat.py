@@ -2,6 +2,7 @@ import os
 import aiml
 import csv
 import json
+import random
 
 from logzero import logger
 
