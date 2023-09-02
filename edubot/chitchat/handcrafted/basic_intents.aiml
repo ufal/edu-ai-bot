@@ -15,22 +15,10 @@
 <template>I apologize for any mistakes. You can turn me off whenever you like.</template>
 </category>
 
-<!-- bye -->
-<category>
-<pattern>BYE</pattern>
-<template>Goodbye</template>
-</category>
-<category>
-<pattern>GOODBYE</pattern>
-<template>See you next time</template>
-</category>
-<category>
-<pattern>SEE YOU</pattern>
-<template>Bye</template>
-</category>
+<!-- bye (see also salutations.aiml) -->
 <category>
 <pattern>SEE YOU NEXT TIME</pattern>
-<template>See you</template>
+<template><srai>bye</srai></template>
 </category>
 
 <!-- co_delas -->
@@ -183,7 +171,7 @@
 </category>
 <category>
 <pattern>HI</pattern>
-<template>Hi</template>
+<template><random><li>Hi</li><li>Hello!</li><li>How do you do?</li><li>How are you doing?</li><li>Hi there!</li><li>Hiya!</li><li>Hi, what's up?</li></random></template>
 </category>
 
 <!-- chci_si_povidat -->

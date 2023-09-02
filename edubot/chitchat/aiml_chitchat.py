@@ -3,6 +3,7 @@ import aiml
 import csv
 import json
 import random
+import re
 
 from logzero import logger
 
@@ -34,11 +35,22 @@ class AIMLChitchat:
             for subst_k, subst_v in substs:
                 kernel._subbers['normal'][subst_k.strip()] = subst_v.strip()
 
+    def postprocess_response(self, resp):
+        # basic cleanup of weird AIML stuff
+        resp = re.sub(r'""\?', '', resp)
+        resp = re.sub(r'[?!.]([" ])\?', r'\1?', resp)
+        resp = re.sub(r'""', '"', resp)
+        resp = re.sub(r'\bis  +is\b', 'is', resp, flags=re.I)
+        resp = re.sub(r'"it"', 'it', resp, flags=re.I)
+        resp = re.sub(r'^"(.*)"$', r'\1', resp)
+        return resp
+
     def ask_chitchat(self, input_text:str, conv_id, context):
         logger.debug(f"Question: {input_text}")
         en_transl = self.remote_service_handler.translate_cs2en(input_text)
         logger.debug(f"EN Question: {en_transl}")
         response = self.kernel.respond(en_transl, sessionID=conv_id)
+        response = self.postprocess_response(response)
         logger.debug(f"EN Answer: {response}")
         if not response:
             # trying without context
