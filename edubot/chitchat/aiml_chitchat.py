@@ -34,11 +34,11 @@ class AIMLChitchat:
             for subst_k, subst_v in substs:
                 kernel._subbers['normal'][subst_k.strip()] = subst_v.strip()
 
-    def ask_chitchat(self, input_text:str, conv_id):
+    def ask_chitchat(self, input_text:str, conv_id, context):
         logger.debug(f"Question: {input_text}")
         en_transl = self.remote_service_handler.translate_cs2en(input_text)
         logger.debug(f"EN Question: {en_transl}")
-        response = self.kernel.respond(en_transl)
+        response = self.kernel.respond(en_transl, sessionID=conv_id)
         logger.debug(f"EN Answer: {response}")
         if not response:
             # trying without context

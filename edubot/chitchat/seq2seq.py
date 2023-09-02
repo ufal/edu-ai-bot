@@ -1,8 +1,5 @@
 import random
-from collections import defaultdict
-from typing import Text
-from time import time as current_time_seconds
-from dataclasses import dataclass, field
+from typing import Text, List
 from abc import ABC
 
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
@@ -10,41 +7,9 @@ from logzero import logger
 from fuzzywuzzy import fuzz
 
 
-class ContextStorage(ABC):
-    def store_utterance(self, utterance: Text, conv_id: Text):
-        raise NotImplementedError
-
-    def retrieve_context(self, conv_id: Text):
-        raise NotImplementedError
-
-
-@dataclass
-class InMemoryEntry:
-    context: list = field(default_factory=lambda: [])
-    time_created: float = field(default_factory=lambda: current_time_seconds())
-
-
-class InMemoryContextStorage(ContextStorage):
-    def __init__(self):
-        self.context_cache = defaultdict(InMemoryEntry)
-
-    def store_utterance(self, utterance: Text, conv_id: Text):
-        self.context_cache[conv_id].context.append(utterance)
-
-    def retrieve_context(self, conv_id: Text):
-        return self.context_cache[conv_id].context
-
-    def clear_cache(self):
-        current_time = current_time_seconds()
-        to_be_deleted = [conv_id for conv_id, entry in self.context_cache.items()
-                     if current_time - entry.time_created > 7200]
-        for id_to_delete in to_be_deleted:
-            del self.context_cache[id_to_delete]
-
-
 class ChitchatHandler(ABC):
     def __init__(self):
-        self.context_storage = InMemoryContextStorage()
+        pass
 
     def get_reply(self, context: Text):
         raise NotImplementedError
@@ -52,15 +17,11 @@ class ChitchatHandler(ABC):
     def _wrap_utterance(self, utterance: Text):
         return utterance
 
-    def ask_chitchat(self, question: Text, conv_id: Text):
-        context = "".join(self.context_storage.retrieve_context(conv_id))
+    def ask_chitchat(self, question: Text, conv_id: Text, context: List):
+        context = "".join([self._wrap_utterance(u) for u in context])
         context += question
         reply = self.get_reply(context)
-        self.context_storage.store_utterance(self._wrap_utterance(question), conv_id)
-        self.context_storage.store_utterance(self._wrap_utterance(reply), conv_id)
-        self.context_storage.clear_cache()
         return reply
-
 
 
 class DummyChitchatHandler(ChitchatHandler):

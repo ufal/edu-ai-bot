@@ -16,11 +16,11 @@ from flask import request, jsonify
 from logzero import logger
 
 from edubot.remote_services import RemoteServiceHandler
-from edubot.qa import QAHandler, OpenAIQA, OpenAIReformulate
+from edubot.qa import QAHandler
 from edubot.chitchat.seq2seq import Seq2SeqChitchatHandler, DummyChitchatHandler
 from edubot.chitchat.aiml_chitchat import AIMLChitchat
 from edubot.educlf.model import IntentClassifierModel
-from langchain import OpenAI, PromptTemplate, LLMChain
+from edubot.context import InMemoryContextStorage
 
 
 app = flask.Flask(__name__)
@@ -33,16 +33,18 @@ def ask():
         return "No query given.", 400
     logger.info(f"Query: {request.json['q']}")
 
-    conv_id = str(request.json.get('conversation_id', 'default_id'))
+    # get conversation id: either from conversation_id or user_id field
+    conv_id = str(request.json.get('conversation_id', request.json.get('user_id', 'default_id')))
+    context = context_store.retrieve_context(conv_id)
+    # fix accents & store input
     query = remote_service_handler.correct_diacritics(request.json['q'])
     logger.info(f"Korektor: {query}")
+    context_store.store_utterance(query, conv_id)
 
-    exact = request.json.get('exact')
-    force_wiki = request.json.get('w')
-    context, title, url = None, None, None
+    qa_ir, qa_url = None, None
 
     # classify intent, with overrides
-    if force_wiki or query.startswith('/w'):
+    if request.json.get('w') or query.startswith('/w'):
         query = re.sub(r'^/w\s+', '', query)
         intent, intent_conf = 'qawiki', 1.0
     elif query.startswith('/c'):
@@ -55,31 +57,42 @@ def ask():
         intent, intent_conf = intent_clf_model.predict_example(query)[0] if intent_clf_model else (None, None)
     logger.info(f"Intent: {intent} ({intent_conf})")
 
+    # process intent -- respond
+
+    # chitchat
     if intent in config['CHITCHAT_INTENTS']:
-        response = chitchat_handler.ask_chitchat(query, conv_id)
+        response = chitchat_handler.ask_chitchat(query, conv_id, context)
+    # other handcrafted responses
     elif intent in handcrafted_responses:
         available_responses = handcrafted_responses[intent]
         response = random.choice(available_responses)
         response = response.replace('timenow()', strftime('%H:%M'))
         response = response.replace('datenow()', strftime('%d.%m.%Y'))
+    # QA/IR
     else:
-        context, retrieved_response, title, url = qa_handler.apply_qa(query, context=None, exact=exact)
-        if not retrieved_response and not context:
+        qa_ir, qa_resp, title, qa_url = qa_handler.apply_qa(query, context=None, exact=request.json.get('exact'))
+        if not qa_resp and not qa_ir:
             response = 'Promiňte, teď jsem nerozuměl.'
         else:
-            if 'wikipedia' in url:
-                url = 'https://cs.wikipedia.org/wiki/' + title.replace(' ', '_')
-                if retrieved_response:
-                    response = f'Myslím, že {retrieved_response} (Zdroj: {url})'
+            if 'wikipedia' in qa_url:
+                qa_url = 'https://cs.wikipedia.org/wiki/' + title.replace(' ', '_')
+                if qa_resp:
+                    response = f'Myslím, že {qa_resp} (Zdroj: {qa_url})'
                 else:
-                    response = f'Tohle by vám mohlo pomoct: {context} (Zdroj: {url})'
+                    response = f'Tohle by vám mohlo pomoct: {qa_ir} (Zdroj: {qa_url})'
             else:
-                response = f'{context} (Zdroj: {url})'
+                response = f'{qa_ir} (Zdroj: {qa_url})'
+
+    # return response
 
     response_dict = {
         'a': response,
         'intent': intent
     }
+    # store history
+    context_store.store_utterance(response, conv_id)
+    context_store.clear_cache()
+
     # file logging
     if ('LOGFILE_PATH' in config) and (config['LOGFILE_PATH'] is not None):
         logger.info(f"Logging into {config['LOGFILE_PATH']}")
@@ -88,8 +101,8 @@ def ask():
                                 'url': request.url,
                                 'json': request.json},
                     'response': {'text': response_dict,
-                                 'url': url,
-                                 'context': context,
+                                 'qa_url': qa_url,
+                                 'qa_ir': qa_ir,
                                  'intent': intent,
                                  'korektor': query}}
         with open(config['LOGFILE_PATH'], 'a', encoding='UTF_8') as fh:
@@ -105,7 +118,7 @@ if __name__ == '__main__':
     ap.add_argument('-p', '--port', type=int, default=8200, help="Port to listen on.")
     ap.add_argument('-ha', '--host-addr', type=str, default='0.0.0.0')
     ap.add_argument('-c', '--config', type=str, help='Path to yaml configuration file', default=os.path.join("configs", "default_config.yaml"))
-    ap.add_argument('-l', '--logfile', type=str, help='Path to a file to log requests',)# default="DefaultLog.log")
+    ap.add_argument('-l', '--logfile', type=str, help='Path to a file to log requests',)  # default="DefaultLog.log")
     ap.add_argument('-d', '--debug', '--flask-debug', action='store_true', help='Show flask debug messages')
     ap.add_argument('--cuda', action='store_true', help='Use GPU (true by default)')
     ap.add_argument('--no-cuda', dest='cuda', action='store_false')
@@ -125,6 +138,9 @@ if __name__ == '__main__':
 
     # load remote services handler
     remote_service_handler = RemoteServiceHandler(config)
+
+    # load context storage
+    context_store = InMemoryContextStorage()
 
     # load QA
     qa_handler = QAHandler(config, remote_service_handler, device)
