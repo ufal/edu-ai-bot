@@ -1,5 +1,5 @@
-P_kolik_hodin:
+p_kolik_hodin:
   - právě je timenow()
 
-P_kolikateho:
+p_kolikateho:
   - dnes je datenow()

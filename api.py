@@ -62,7 +62,7 @@ def ask():
     # chitchat
     if intent in config['CHITCHAT_INTENTS']:
         response = chitchat_handler.ask_chitchat(query, conv_id, context)
-    # other handcrafted responses
+    # other handcrafted responses (date/time)
     elif intent in handcrafted_responses:
         available_responses = handcrafted_responses[intent]
         response = random.choice(available_responses)
@@ -74,12 +74,14 @@ def ask():
         if not qa_resp and not qa_ir:
             response = 'Promiňte, teď jsem nerozuměl.'
         else:
-            if 'wikipedia' in qa_url:
+            if qa_url and 'wikipedia' in qa_url:
                 qa_url = 'https://cs.wikipedia.org/wiki/' + title.replace(' ', '_')
                 if qa_resp:
                     response = f'Myslím, že {qa_resp} (Zdroj: {qa_url})'
                 else:
                     response = f'Tohle by vám mohlo pomoct: {qa_ir} (Zdroj: {qa_url})'
+            elif not qa_url:  # GPT3 hallucination for no retrieval
+                response = f'Nejsem si moc jistý, ale myslím, že {qa_resp}'
             else:
                 response = f'{qa_ir} (Zdroj: {qa_url})'
 
