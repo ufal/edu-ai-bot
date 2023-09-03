@@ -38,7 +38,7 @@ class OpenAIQA:
 class OpenAIReformulate:
 
     def __init__(self, model_name):
-        reformulate_llm = OpenAI(model_name=reformulate_model_name,
+        reformulate_llm = OpenAI(model_name,
                                  temperature=0,
                                  top_p=0.8,
                                  openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
@@ -49,7 +49,7 @@ Otázka:
 Odpověď:""")
         self.llm_chain = LLMChain(llm=reformulate_llm, prompt=reformulate_prompt)
 
-    def run(question):
+    def run(self, question):
         return self.llm_chain.run(question=question)
 
 
@@ -62,13 +62,13 @@ class HuggingFaceQA:
 
     def __call__(self, kwarg_dict):
         question, context = kwarg_dict['question'], kwarg_dict['context']
-        inputs = self.tokenizer(question, context, return_tensors = "pt")
+        inputs = self.tokenizer(question, context, return_tensors="pt")
         outputs = self.model(**inputs.to(self.device))
         start_position = outputs.start_logits[0].argmax()
         end_position = outputs.end_logits[0].argmax()
         answer_ids = inputs["input_ids"][0][start_position:end_position]
         response = self.tokenizer.decode(answer_ids)
-        return response, 1.0 # TODO fix confidence scores somehow
+        return response, 1.0  # TODO fix confidence scores somehow
 
 
 class QAHandler:
@@ -103,7 +103,7 @@ class QAHandler:
         elif 'SENTENCE_REPR_MODEL' in config:
             from sentence_transformers import SentenceTransformer
             self.repr_model = SentenceTransformer(config['SENTENCE_REPR_MODEL'],
-                                                      device=device)
+                                                  device=device)
         else:
             self.repr_model = None
         logger.info(f'Sentence repr model: {config.get("SENTENCE_REPR_MODEL")} / {str(type(self.repr_model))}')
@@ -115,7 +115,24 @@ class QAHandler:
             self.reformulate_model = None
         logger.info(f'Reformulate model: {reformulate_model_path} / {str(type(self.reformulate_model))}')
 
-    def apply_qa(self, query, context=None, exact=False):
+        self.site_to_pref = config['QA'].get('SITE_TO_PREF', {'default': ['WIKI']})
+
+    def get_solr_configs(self, site, filtered_query_nac, filtered_query_nacv):
+        """Get SOLR search configs -- what query to build, which attributes to search, what sources to filter."""
+        cfgs = []
+        for src in self.site_to_pref.get('site', self.site_to_pref['default']):
+            if src == 'WIKI':  # wiki is a bit more detailed
+                cfgs.extend([(f'"{filtered_query_nac}"', 'title_str', 'wiki'),
+                            (f'"{filtered_query_nac}"', 'title_cz', 'wiki'),
+                            (f'"{filtered_query_nac}"', 'first_paragraph_cz', 'wiki'),
+                            (filtered_query_nac, 'title_cz', 'wiki'),
+                            (filtered_query_nacv, 'first_paragraph_cz', 'wiki')])
+            else:  # other sources are stricter
+                cfgs.extend([(filtered_query_nacv, 'title_cz', src),
+                             (filtered_query_nacv, 'first_paragraph_cz', src),])
+        return cfgs
+
+    def apply_qa(self, query, context=None, exact=False, site='default'):
         """Main QA entry point, running the query & models."""
         if self.reformulate_model is not None:
             reformulated_query = self.reformulate_model.run(question=query) or query
@@ -127,29 +144,25 @@ class QAHandler:
             query_type = 'default'
         logger.info(f'Q: {query} | F: {filtered_query_nac} | {filtered_query_nacv}')
 
+        solr_configs = self.get_solr_configs(site, filtered_query_nac, filtered_query_nacv)
+
         if not context and filtered_query_nacv:
-            for q, a, s in [#(filtered_query_nacv, 'title_cz', 'logic'),   # XXX logic olympiad not used at the moment, TODO make this configurable
-                            #(filtered_query_nacv, 'first_paragraph_cz', 'logic'),
-                            (f'"{filtered_query_nac}"', 'title_str', 'wiki'),
-                            (f'"{filtered_query_nac}"', 'title_cz', 'wiki'),
-                            (f'"{filtered_query_nac}"', 'first_paragraph_cz', 'wiki'),
-                            (filtered_query_nac, 'title_cz', 'wiki'),
-                            (filtered_query_nacv, 'first_paragraph_cz', 'wiki')]:
-                if not q:  # skip if filtered_query_nac is empty
+            for q, a, src in solr_configs:
+                if not q:  # skip if filtered query is empty
                     continue
-                db_result = self.remote_service_handler.ask_solr(query=q, attrib=a, source=s)
+                db_result = self.remote_service_handler.ask_solr(query=q, attrib=a, source=src)
                 if db_result.get('docs'):
                     break
 
             if not db_result.get('docs'):
-                logger.info(f'No result.')
+                logger.info('No result.')
                 return None, None, None, None
 
             logger.debug("\n" + "\n".join([f'D: {doc["title"]}/{doc["score"]}' for doc in db_result['docs']]))
 
             answers = db_result['docs']
 
-            if self.repr_model:
+            if src == 'wiki' and self.repr_model:
                 ranked_answers = self.rank_utterance_list_by_similarity(query,
                                                                         [(a['first_paragraph'], a) for a in answers])
                 _, chosen_answer = ranked_answers[0]
@@ -161,7 +174,7 @@ class QAHandler:
             chosen_answer = {'first_paragraph': None, 'url': None}
             title = None
 
-        if exact and query_type == 'default' and self.qa_model:
+        if src == 'wiki' and exact and query_type == 'default' and self.qa_model:
             if not context:
                 context = chosen_answer['first_paragraph']
             response, _ = self.qa_model({'question': query, 'context': context})

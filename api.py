@@ -70,7 +70,9 @@ def ask():
         response = response.replace('datenow()', strftime('%d.%m.%Y'))
     # QA/IR
     else:
-        qa_ir, qa_resp, title, qa_url = qa_handler.apply_qa(query, context=None, exact=request.json.get('exact'))
+        qa_ir, qa_resp, title, qa_url = qa_handler.apply_qa(query, context=None,
+                                                            exact=request.json.get('exact'),
+                                                            site=request.json.get('site', 'default'))
         if not qa_resp and not qa_ir:
             response = 'Promiňte, teď jsem nerozuměl.'
         else:

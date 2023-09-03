@@ -27,9 +27,10 @@ class RemoteServiceHandler:
             self.identity_verbs = set((w.strip() for w in fd.readlines() if len(w.strip()) > 0))
 
     def ask_solr(self, query, attrib=None, source='wiki'):
-        url = self.urls['WIKI']
-        if source == 'logic':
-            url = self.urls['LOGIC']
+        if source == 'wiki':
+            url = self.urls['WIKI']
+        else:
+            url = source + '?http*'
         if attrib is not None:
             if isinstance(attrib, list):
                 query = ' OR '.join([f'{a}:{query}' for a in attrib])
