@@ -162,9 +162,13 @@ class QAHandler:
 
             answers = db_result['docs']
 
-            if src == 'wiki' and self.repr_model:
-                ranked_answers = self.rank_utterance_list_by_similarity(query,
-                                                                        [(a['first_paragraph'], a) for a in answers])
+            if self.repr_model:
+                if src == 'wiki':
+                    # rank wiki articles by content (=answer) as title isn't very indicative
+                    ranked_answers = self.rank_utterances(query, [(a['first_paragraph'], a) for a in answers])
+                else:
+                    # but rank other articles by title (=question) as this is closer to the query
+                    ranked_answers = self.rank_utterances(query, [(a['title'], a) for a in answers])
                 _, chosen_answer = ranked_answers[0]
             else:
                 chosen_answer = answers[0]
@@ -181,7 +185,7 @@ class QAHandler:
             return context, response, title, chosen_answer["url"]
         return chosen_answer['first_paragraph'], None, title, chosen_answer["url"]
 
-    def rank_utterance_list_by_similarity(self, reference: Text, candidates: Iterable[Tuple[Text, Any]])\
+    def rank_utterances(self, reference: Text, candidates: Iterable[Tuple[Text, Any]])\
             -> List[Tuple[float, Dict[Text, Text]]]:
         """
         :param reference: The reference text

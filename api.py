@@ -62,14 +62,20 @@ def ask():
     # chitchat
     if intent in config['CHITCHAT_INTENTS']:
         response = chitchat_handler.ask_chitchat(query, conv_id, context)
-    # other handcrafted responses (date/time)
+    # control handcrafted intents (#handover, #courses, #explain)
+    elif intent.startswith('#'):
+        response = intent  # no specific reply from us
+    # other handcrafted responses (p_kolikateho, p_kolik_hodin, qa_ema)
     elif intent in handcrafted_responses:
         available_responses = handcrafted_responses[intent]
         response = random.choice(available_responses)
+        # postprocessing
         response = response.replace('timenow()', strftime('%H:%M'))
         response = response.replace('datenow()', strftime('%d.%m.%Y'))
+        response = response.replace('{query}', query)
     # QA/IR
     else:
+        # TODO can we prefer site based on intent?
         qa_ir, qa_resp, title, qa_url = qa_handler.apply_qa(query, context=None,
                                                             exact=request.json.get('exact'),
                                                             site=request.json.get('site', 'default'))
@@ -93,6 +99,8 @@ def ask():
         'a': response,
         'intent': intent
     }
+    if intent.startswith('#'):
+        response_dict['control'] = 1
     # store history
     context_store.store_utterance(response, conv_id)
     context_store.clear_cache()

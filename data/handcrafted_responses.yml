@@ -3,3 +3,6 @@ p_kolik_hodin:
 
 p_kolikateho:
   - dnes je datenow()
+
+qa_ema:
+  - "Materiály máme zde: https://devel.ema.rvp.cz/vyhledat-material?searchForm-type=wizard&searchForm-filter[search]={query}"
