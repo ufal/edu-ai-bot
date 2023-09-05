@@ -1348,7 +1348,7 @@
 </random></template>
 </category>
 <category><pattern>COM</pattern>
-<template>Oh a net address!</template>
+<template>Oh a network address!</template>
 </category>
 <category><pattern>SO WHAT</pattern>
 <template>Maybe it doesn't make any difference.</template>
@@ -7372,7 +7372,7 @@
 <template>Follow your intuition.</template>
 </category>
 <category><pattern>HOW SHOULD I KNOW</pattern>
-<template>Either from your senses or from pure reason.</template>
+<template>Use your brain.</template>
 </category>
 <category><pattern>HOW TALL AM I</pattern>
 <template>I would guess average.</template>
