@@ -146,6 +146,7 @@ class QAHandler:
 
         solr_configs = self.get_solr_configs(site, filtered_query_nac, filtered_query_nacv)
 
+        src = None  # source
         if not context and filtered_query_nacv:
             for q, a, src in solr_configs:
                 if not q:  # skip if filtered query is empty

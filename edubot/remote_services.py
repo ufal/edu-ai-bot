@@ -55,9 +55,9 @@ class RemoteServiceHandler:
             return query, None, None
         logger.debug("\n" + "\n".join(["\t".join([w['form'], w['lemma'], w['tag']]) for w in tagged]))
         filtered_nac = " ".join([w.form for w in tagged
-                                 if w.tag[0] in set(['N', 'A', 'C']) and w.lemma not in self.stopwords])
+                                 if w.tag[0] in set(['N', 'B', 'A', 'C']) and w.lemma not in self.stopwords])
         filtered_nacv = " ".join([w.form for w in tagged
-                                  if w.tag[0] in set(['N', 'A', 'C', 'V']) and w.lemma not in self.stopwords])
+                                  if w.tag[0] in set(['N', 'B', 'A', 'C', 'V']) and w.lemma not in self.stopwords])
         qtype = 'default'
         if not filtered_nacv:
             qtype = 'empty'
