@@ -7,6 +7,7 @@ import random
 from argparse import ArgumentParser
 from time import strftime
 import re
+import urllib.parse
 
 import torch
 import flask
@@ -72,7 +73,7 @@ def ask():
         # postprocessing
         response = response.replace('timenow()', strftime('%H:%M'))
         response = response.replace('datenow()', strftime('%d.%m.%Y'))
-        response = response.replace('{query}', query)
+        response = response.replace('{query}', urllib.parse.quote_plus(query))
     # QA/IR
     else:
         # TODO can we prefer site based on intent?
