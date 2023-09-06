@@ -118,6 +118,8 @@ class QAHandler:
 
         self.site_to_pref = config['QA'].get('SITE_TO_PREF', {'default': ['WIKI']})
 
+        self.inappropriate_regex = re.compile(r'\b(' + '|'.join(config['QA'].get('INAPPROPRIATE_KWS', ['$^'])) + r')\b', flags=re.I)
+
     def get_solr_configs(self, site, filtered_query_nac, filtered_query_nacv):
         """Get SOLR search configs -- what query to build, which attributes to search, what sources to filter."""
         cfgs = []
@@ -162,7 +164,10 @@ class QAHandler:
 
             logger.debug("\n" + "\n".join([f'D: {doc["title"]}/{doc["score"]}' for doc in db_result['docs']]))
 
-            answers = db_result['docs']
+            answers = self.filter_inappropriate(db_result['docs'])
+            if not answers:
+                logger.info('No result left after filtering.')
+                return None, None, None, None
 
             if self.repr_model:
                 if src == 'wiki':
@@ -202,3 +207,6 @@ class QAHandler:
         candidates_repr = (self.repr_model.encode(c[0]) for c in candidates)
         distances = [(cosine(reference_repr, cr), c[1]) for cr, c in zip(candidates_repr, candidates)]
         return sorted(distances, key=lambda c: c[0])
+
+    def filter_inappropriate(self, docs):
+        return [d for d in docs if not self.inappropriate_regex.search(d['title'])]

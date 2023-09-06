@@ -14,6 +14,7 @@ QA:
   SITE_TO_PREF:
     'socketio - lo': ['LOGIC', 'WIKI']
     default: ['NPI', 'WIKI']
+  INAPPROPRIATE_KWS: ['sex', 'sexuální', 'vrah', 'vražd[ay]', 'sexy', 'sexus', 'masturbace', 'masturbační']
 REFORMULATE_MODEL_PATH: "" # "openai/text-yyyy-00x" or empty
 HC_RESPONSES_PATH: "data/handcrafted_responses.yml"
 INTENT_MODEL:
