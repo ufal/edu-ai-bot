@@ -15,6 +15,7 @@ QA:
     'socketio - lo': ['LOGIC', 'WIKI']
     default: ['NPI', 'WIKI']
   INAPPROPRIATE_KWS: ['sex', 'sexuální', 'vrah', 'vražd[ay]', 'sexy', 'sexus', 'masturbace', 'masturbační']
+  DISTANCE_THRESHOLD: 0.4
 REFORMULATE_MODEL_PATH: "" # "openai/text-yyyy-00x" or empty
 HC_RESPONSES_PATH: "data/handcrafted_responses.yml"
 INTENT_MODEL:

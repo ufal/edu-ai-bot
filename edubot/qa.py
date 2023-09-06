@@ -1,4 +1,5 @@
 from typing import Text, Iterable, Tuple, Dict, Any, List
+from numbers import Number
 from logzero import logger
 from scipy.spatial.distance import cosine
 from transformers import AutoTokenizer, AutoModelForQuestionAnswering
@@ -119,6 +120,7 @@ class QAHandler:
         self.site_to_pref = config['QA'].get('SITE_TO_PREF', {'default': ['WIKI']})
 
         self.inappropriate_regex = re.compile(r'\b(' + '|'.join(config['QA'].get('INAPPROPRIATE_KWS', ['$^'])) + r')\b', flags=re.I)
+        self.distance_threshold = config['QA'].get('DISTANCE_THRESHOLD', 2.0)
 
     def get_solr_configs(self, site, filtered_query_nac, filtered_query_nacv):
         """Get SOLR search configs -- what query to build, which attributes to search, what sources to filter."""
@@ -150,62 +152,62 @@ class QAHandler:
         solr_configs = self.get_solr_configs(site, filtered_query_nac, filtered_query_nacv)
 
         src = None  # source
+        chosen_answer = None
         if not context and filtered_query_nacv:
             for q, a, src in solr_configs:
                 if not q:  # skip if filtered query is empty
                     continue
                 db_result = self.remote_service_handler.ask_solr(query=q, attrib=a, source=src)
+
                 if db_result.get('docs'):
-                    break
+                    logger.debug("\n" + "\n".join([f'D: {doc["title"]}/{doc["score"]}' for doc in db_result['docs']]))
+                    answers = self.filter_inappropriate(db_result['docs'])
+                    if not answers:
+                        logger.info('No result left after filtering.')
+                        continue
 
-            if not db_result.get('docs'):
-                logger.info('No result.')
-                return None, None, None, None
+                    if self.repr_model:
+                        if src == 'wiki':
+                            # rank wiki articles by content (=answer) as title isn't very indicative
+                            ranked_answers = self.rank_utterances(query, [(a['first_paragraph'], a) for a in answers])
+                        else:
+                            # but rank other articles by title (=question) as this is closer to the query
+                            ranked_answers = self.rank_utterances(query, [(a['title'], a) for a in answers], threshold=self.distance_threshold)
+                            if not ranked_answers:
+                                logger.info('No result left after thresholding.')
+                                continue
+                        _, chosen_answer = ranked_answers[0]
+                    else:
+                        chosen_answer = answers[0]
+                    break  # stop searching if we found something
 
-            logger.debug("\n" + "\n".join([f'D: {doc["title"]}/{doc["score"]}' for doc in db_result['docs']]))
-
-            answers = self.filter_inappropriate(db_result['docs'])
-            if not answers:
-                logger.info('No result left after filtering.')
-                return None, None, None, None
-
-            if self.repr_model:
-                if src == 'wiki':
-                    # rank wiki articles by content (=answer) as title isn't very indicative
-                    ranked_answers = self.rank_utterances(query, [(a['first_paragraph'], a) for a in answers])
-                else:
-                    # but rank other articles by title (=question) as this is closer to the query
-                    ranked_answers = self.rank_utterances(query, [(a['title'], a) for a in answers])
-                _, chosen_answer = ranked_answers[0]
-            else:
-                chosen_answer = answers[0]
-
-            title = chosen_answer["title"]
-        else:
-            chosen_answer = {'first_paragraph': None, 'url': None}
-            title = None
+        if chosen_answer is None:  # nothing fonud
+            return None, None, None, None
 
         # run the QA model for wiki
         if src == 'wiki' and exact and query_type == 'default' and self.qa_model:
             if not context:
                 context = chosen_answer['first_paragraph']
             response, _ = self.qa_model({'question': query, 'context': context})
-            return context, response, title, chosen_answer["url"]
+            return context, response, chosen_answer["title"], chosen_answer["url"]
+        # remove source prefix from URL for others than wiki
         elif chosen_answer["url"]:
             chosen_answer["url"] = re.sub(r'^[A-Z]+ http', 'http', chosen_answer["url"])
 
-        return chosen_answer['first_paragraph'], None, title, chosen_answer["url"]
+        return chosen_answer['first_paragraph'], None, chosen_answer["title"], chosen_answer["url"]
 
-    def rank_utterances(self, reference: Text, candidates: Iterable[Tuple[Text, Any]])\
+    def rank_utterances(self, reference: Text, candidates: Iterable[Tuple[Text, Any]], threshold: Number = 2.0)\
             -> List[Tuple[float, Dict[Text, Text]]]:
         """
         :param reference: The reference text
         :param candidates: Iterable of tuples (keytext, Any), keytext is used for sorting
+        :param threshold: Max. threshold for cosine distance -- anything over that is filtered out
         :return: sorted candidates list along with zipped distances. The keys used for representation aren't returned.
         """
         reference_repr = self.repr_model.encode(reference)
         candidates_repr = (self.repr_model.encode(c[0]) for c in candidates)
         distances = [(cosine(reference_repr, cr), c[1]) for cr, c in zip(candidates_repr, candidates)]
+        distances = [c for c in distances if c[0] < threshold]
         return sorted(distances, key=lambda c: c[0])
 
     def filter_inappropriate(self, docs):
