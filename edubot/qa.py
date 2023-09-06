@@ -4,6 +4,7 @@ from scipy.spatial.distance import cosine
 from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 import os
 from langchain import OpenAI, PromptTemplate, LLMChain
+import re
 
 
 class OpenAIQA:
@@ -120,7 +121,7 @@ class QAHandler:
     def get_solr_configs(self, site, filtered_query_nac, filtered_query_nacv):
         """Get SOLR search configs -- what query to build, which attributes to search, what sources to filter."""
         cfgs = []
-        for src in self.site_to_pref.get('site', self.site_to_pref['default']):
+        for src in self.site_to_pref.get(site, self.site_to_pref['default']):
             if src == 'WIKI':  # wiki is a bit more detailed
                 cfgs.extend([(f'"{filtered_query_nac}"', 'title_str', 'wiki'),
                             (f'"{filtered_query_nac}"', 'title_cz', 'wiki'),
@@ -179,11 +180,15 @@ class QAHandler:
             chosen_answer = {'first_paragraph': None, 'url': None}
             title = None
 
+        # run the QA model for wiki
         if src == 'wiki' and exact and query_type == 'default' and self.qa_model:
             if not context:
                 context = chosen_answer['first_paragraph']
             response, _ = self.qa_model({'question': query, 'context': context})
             return context, response, title, chosen_answer["url"]
+        elif chosen_answer["url"]:
+            chosen_answer["url"] = re.sub(r'^[A-Z]+ http', 'http', chosen_answer["url"])
+
         return chosen_answer['first_paragraph'], None, title, chosen_answer["url"]
 
     def rank_utterances(self, reference: Text, candidates: Iterable[Tuple[Text, Any]])\
