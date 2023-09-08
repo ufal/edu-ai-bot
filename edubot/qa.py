@@ -160,7 +160,7 @@ class QAHandler:
                 db_result = self.remote_service_handler.ask_solr(query=q, attrib=a, source=src)
 
                 if db_result.get('docs'):
-                    logger.debug("\n" + "\n".join([f'D: {doc["title"]}/{doc["score"]}' for doc in db_result['docs']]))
+                    logger.debug(f"{src} \n" + "\n".join([f'D: {doc["title"]}/{doc["score"]}' for doc in db_result['docs']]))
                     answers = self.filter_inappropriate(db_result['docs'])
                     if not answers:
                         logger.info('No result left after filtering.')
@@ -207,8 +207,15 @@ class QAHandler:
         reference_repr = self.repr_model.encode(reference)
         candidates_repr = (self.repr_model.encode(c[0]) for c in candidates)
         distances = [(cosine(reference_repr, cr), c[1]) for cr, c in zip(candidates_repr, candidates)]
+        logger.debug("\n" + "\n".join([(f'D: {doc["title"]}/{sim:.4f}' if sim < threshold else f'D: {doc["title"]}/{sim:.4f} !!') for sim, doc in distances]))
         distances = [c for c in distances if c[0] < threshold]
         return sorted(distances, key=lambda c: c[0])
 
     def filter_inappropriate(self, docs):
-        return [d for d in docs if not self.inappropriate_regex.search(d['title'])]
+        res = []
+        for d in docs:
+            if self.inappropriate_regex.search(d['title']):
+                logger.debug(f'Filtered out: {d["title"]}')
+            else:
+                res.append(d)
+        return res
