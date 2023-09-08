@@ -14,8 +14,12 @@ QA:
   SITE_TO_PREF:
     'socketio - lo': ['LOGIC', 'WIKI']
     default: ['NPI', 'WIKI']
-  INAPPROPRIATE_KWS: ['sex', 'sexuální', 'vrah', 'vražd[ay]', 'sexy', 'sexus', 'masturbace', 'masturbační', 
-      'erotick[ýáé]', 'pohlavní', 'penis', 'vag[ií]na', 'vulva', 'řitní']
+  INAPPROPRIATE_KWS: ['sex', 'sexuální(?:ch|mi?)?', 'vrah', 'vražd[ay]', 'sexy', 'sexus', 'masturbace', 'masturbační', 
+      'erotick[ýáé]', 'pohlavní', 'penis(?:u|em)?', 'vag[ií]n[ay]', 'vulv[ay]', 'řitní', 'erotogenní', 'erekce', 'orgasmus',
+      'ejakulace', 'inseminace', 'sperma(?:tu|tem)', 'incest', 'obscénnost', '(?:bi|homo|hetero)?sexualita',
+      'parafilie', 'fetišismus', 'objektofilie', 'pedofilie', 'zoofilie', 'interrupce', 'milostn[ýáé]', 'kastrace', 'obřízka',
+      'felace', 'cunnilingus', 'anilingus', 'gang bang', 'bukkake', 'gokkun', 'autofelace', 'snowballing', 'petting', 'prstění',
+      'fisting', 'rychlovka', 'anální', 'creampie', 'BDSM', 'pornografie', 'prostituce',]
   DISTANCE_THRESHOLD: 0.42
 REFORMULATE_MODEL_PATH: "" # "openai/text-yyyy-00x" or empty
 HC_RESPONSES_PATH: "data/handcrafted_responses.yml"
