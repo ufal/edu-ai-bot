@@ -86,13 +86,15 @@ def ask():
             if qa_url and 'wikipedia' in qa_url:
                 qa_url = 'https://cs.wikipedia.org/wiki/' + title.replace(' ', '_')
                 if qa_resp:
-                    response = f'Myslím, že {qa_resp} (Zdroj: {qa_url})'
+                    response = f'Myslím, že {qa_resp} (Zdroj: {qa_url} )'
                 else:
-                    response = f'Tohle by vám mohlo pomoct: {qa_ir} (Zdroj: {qa_url})'
+                    response = f'Tohle by vám mohlo pomoct: {qa_ir} (Zdroj: {qa_url} )'
             elif not qa_url:  # GPT3 hallucination for no retrieval
                 response = f'Nejsem si moc jistý, ale myslím, že {qa_resp}'
+            elif qa_url == '-':  # NPI not providing URLs
+                response = qa_ir
             else:
-                response = f'{qa_ir} (Zdroj: {qa_url})'
+                response = f'{qa_ir} (Zdroj: {qa_url} )'
 
     # return response
 
