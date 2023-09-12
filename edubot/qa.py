@@ -121,11 +121,15 @@ class QAHandler:
 
         self.inappropriate_regex = re.compile(r'\b(' + '|'.join(config['QA'].get('INAPPROPRIATE_KWS', ['$^'])) + r')\b', flags=re.I)
         self.distance_threshold = config['QA'].get('DISTANCE_THRESHOLD', 2.0)
+        self.distance_threshold_indomain = config['QA'].get('DISTANCE_THRESHOLD_INDOMAIN', 2.0)
 
-    def get_solr_configs(self, site, filtered_query_nac, filtered_query_nacv):
+    def get_solr_configs(self, site, intent, filtered_query_nac, filtered_query_nacv):
         """Get SOLR search configs -- what query to build, which attributes to search, what sources to filter."""
         cfgs = []
-        for src in self.site_to_pref.get(site, self.site_to_pref['default']):
+        sources = self.site_to_pref.get(site, self.site_to_pref['default'])
+        if site == 'force':
+            sources = [re.sub(r'qa_?', '', intent).upper()]  # take source from intent forcefully
+        for src in sources:
             if src == 'WIKI':  # wiki is a bit more detailed
                 cfgs.extend([(f'"{filtered_query_nac}"', 'title_str', 'wiki'),
                             (f'"{filtered_query_nac}"', 'title_cz', 'wiki'),
@@ -137,7 +141,7 @@ class QAHandler:
                              (filtered_query_nacv, 'first_paragraph_cz', src),])
         return cfgs
 
-    def apply_qa(self, query, context=None, exact=False, site='default'):
+    def apply_qa(self, query, context=None, intent='qawiki', exact=False, site='default'):
         """Main QA entry point, running the query & models."""
         if self.reformulate_model is not None:
             reformulated_query = self.reformulate_model.run(question=query) or query
@@ -149,7 +153,7 @@ class QAHandler:
             query_type = 'default'
         logger.info(f'Q: {query} | F: {filtered_query_nac} | {filtered_query_nacv}')
 
-        solr_configs = self.get_solr_configs(site, filtered_query_nac, filtered_query_nacv)
+        solr_configs = self.get_solr_configs(site, intent, filtered_query_nac, filtered_query_nacv)
 
         src = None  # source
         chosen_answer = None
@@ -171,8 +175,12 @@ class QAHandler:
                             # rank wiki articles by content (=answer) as title isn't very indicative
                             ranked_answers = self.rank_utterances(query, [(a['first_paragraph'], a) for a in answers])
                         else:
+                            threshold = self.distance_threshold
+                            if intent == 'qa_' + src.lower():  # source matching intent -- higher threshold
+                                threshold = self.distance_threshold_indomain
                             # but rank other articles by title (=question) as this is closer to the query
-                            ranked_answers = self.rank_utterances(query, [(a['title'], a) for a in answers], threshold=self.distance_threshold)
+                            ranked_answers = self.rank_utterances(query, [(a['title'], a) for a in answers],
+                                                                  threshold=threshold)
                             if not ranked_answers:
                                 logger.info('No result left after thresholding.')
                                 continue

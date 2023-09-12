@@ -21,6 +21,7 @@ QA:
       'felace', 'cunnilingus', 'anilingus', 'gang bang', 'bukkake', 'gokkun', 'autofelace', 'snowballing', 'petting', 'prstění',
       'fisting', 'rychlovka', 'anální', 'creampie', 'BDSM', 'pornografie', 'prostituce',]
   DISTANCE_THRESHOLD: 0.42
+  DISTANCE_THRESHOLD_INDOMAIN: 0.84
 REFORMULATE_MODEL_PATH: "" # "openai/text-yyyy-00x" or empty
 HC_RESPONSES_PATH: "data/handcrafted_responses.yml"
 INTENT_MODEL:
