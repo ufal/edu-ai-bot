@@ -8,3 +8,4 @@ python-aiml-chatbot
 console-log.txt
 nohup.out
 log.jsonl
+cron.log
