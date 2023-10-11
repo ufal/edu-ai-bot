@@ -4,6 +4,7 @@ USER=`whoami`
 PORT=8202
 API_KEY=$1
 
+date
 if curl "http://localhost:$PORT/ping" 2>/dev/null; then
     echo '.'
 else
