@@ -28,6 +28,11 @@ app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 
 
+@app.route('/ping', methods=['GET'])
+def ping():
+    return 'OK', 200
+
+
 @app.route('/', methods=['POST'])
 def ask():
     if not request.json or 'q' not in request.json:
@@ -81,7 +86,7 @@ def ask():
     else:
         # TODO can we prefer site based on intent?
         setting = request.json.get('site', 'default')
-        if intent_conf > 1: # forced intent
+        if intent_conf > 1:  # forced intent
             setting = 'force'
         qa_ir, qa_resp, title, qa_url = qa_handler.apply_qa(query, context=None,
                                                             intent=intent,
