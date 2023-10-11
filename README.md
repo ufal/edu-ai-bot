@@ -16,6 +16,13 @@ This is the main repo for the student's assistant bot. It consists of:
 python api.py --port 8202 --logfile log.jsonl
 ```
 
+### Keep the server running automatically
+
+Edit your crontab (`crontab -e`) and enter this to add a check with auto-restart every 10 minutes:
+```
+*/10 * * * * bash /home/$USER/edu-ai-bot/scripts/autostart.sh <OPENAI_API_KEY> >/home/$USER/edu-ai-bot/cron.log 2>&1
+```
+
 ## Configuration
 ### TODO
 
