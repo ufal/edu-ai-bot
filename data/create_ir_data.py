@@ -1,51 +1,51 @@
 #!/usr/bin/env python
 
 import pandas as pd
-import math
-import io
-
+from edubot.cs_morpho import Analyzer
 
 INPUT_FILE = 'Dotazy Wiki chatbot.xlsx'
 WIKI_DATA = 'cs_wiki_paragraphs_redirects_resolved.tsv'
 TARGET_FILE = 'joined_ir_data.tsv'
-
 HEADER = 'id\turl\ttitle\tfirst_paragraph\n'
 
 
-# open the output buffer
-out = open(TARGET_FILE, 'w', encoding='UTF-8')
-out.write(HEADER)
+def process_and_append_data(df, out_fd, lemmatize_f, url_key, start=0):
+    data = df.to_dict('records')
+    data = data[1:]
+    data = [{'url': f'{url_key} ' + (i[2] if isinstance(i[2], str) else '-'),
+             'title': i[0],
+             'first_paragraph': i[1].replace('\n', ' '),
+             'first_paragraph_cz': lemmatize_f(i[1].replace('\n', ' ')), }
+            for i in data if isinstance(i[1], str)]
+    df2 = pd.DataFrame.from_dict(data)
+    df2 = df2.set_index(pd.RangeIndex(start=start, stop=start+len(data)))
+    df2.index.name = 'id'
+    df2.to_csv(out_fd, sep='\t', mode='a', header=False)
 
-# feed all wiki data into the output buffer (line-by-line, low-level)
-with open(WIKI_DATA, 'r', encoding='UTF-8') as fh:
-    for line in fh:
-        if '\t¶\t' in line:  # skip weird article name that won't work with Solr
-            continue
-        # TODO incorporate the lemmatization
-        # inst_id, inst_url, inst_title, inst_firstpar = line.rstrip().split('\t')
-        out.write(line)
 
-# add LO data
-lo_data = pd.read_excel(INPUT_FILE, sheet_name='QA LO', header=None)
-lo_data = lo_data.to_dict('records')
-lo_data = lo_data[1:]
-lo_data = [{'url': 'LOGIC ' + i[2], 'title': i[0], 'first_paragraph': i[1].replace('\n', ' ')} for i in lo_data]
-df = pd.DataFrame.from_dict(lo_data)
-df = df.set_index(pd.RangeIndex(start=9000001, stop=9000001+len(lo_data)))
-df.index.name = 'id'
-df.to_csv(out, sep='\t', mode='a', header=False)
+def get_lemmatizer():
+    analyzer = Analyzer()
 
-# add NPI data
-npi_data = pd.read_excel(INPUT_FILE, sheet_name='QA NPI', header=None)
-npi_data = npi_data.to_dict('records')
-npi_data = npi_data[1:]
-npi_data = [{'url': 'NPI ' + (i[2] if isinstance(i[2], str) else '-'), 'title': i[0], 'first_paragraph': i[1].replace('\n', ' ')}
-            for i in npi_data if isinstance(i[1], str)]
-df2 = pd.DataFrame.from_dict(npi_data)
-df2 = df2.set_index(pd.RangeIndex(start=9100001, stop=9100001+len(npi_data)))
-df2.index.name = 'id'
-df2.to_csv(out, sep='\t', mode='a', header=False)
+    def lemmatize(text):
+        analyzed_text = analyzer.analyze(text)
+        return ' '.join((i[1] for i in analyzed_text))
+    return lemmatize
 
-# close output file
-out.close()
 
+if __name__ == '__main__':
+    with open(TARGET_FILE, 'w', encoding='UTF-8') as out_fd:
+        out_fd.write(HEADER)
+        lemmatize = get_lemmatizer()
+
+        # WIKI data
+        wiki_df = pd.read_csv(WIKI_DATA, sep='\t', header=None)
+        wiki_df = wiki_df[wiki_df['first_paragraph'].str.contains('\t¶\t') == False]
+        wiki_df['first_paragraph_cz'] = wiki_df['first_paragraph'].apply(lemmatize)
+        wiki_df.to_csv(out_fd, sep='\t', mode='a', header=True)
+
+        # add LO data
+        lo_df = pd.read_excel(INPUT_FILE, sheet_name='QA LO', header=None)
+        process_and_append_data(lo_df, out_fd, lemmatize, url_key="LOGIC", start=9000001)
+        # add NPI data
+        npi_df = pd.read_excel(INPUT_FILE, sheet_name='QA NPI', header=None)
+        process_and_append_data(npi_df, out_fd, lemmatize, url_key="NPI", start=9100001)
