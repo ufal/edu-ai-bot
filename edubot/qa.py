@@ -123,7 +123,7 @@ class QAHandler:
         self.distance_threshold = config['QA'].get('DISTANCE_THRESHOLD', 2.0)
         self.distance_threshold_indomain = config['QA'].get('DISTANCE_THRESHOLD_INDOMAIN', 2.0)
 
-    def get_solr_configs(self, site, intent, filtered_query_nac, filtered_query_nacv):
+    def get_solr_configs(self, site, intent, filtered_query):
         """Get SOLR search configs -- what query to build, which attributes to search, what sources to filter."""
         cfgs = []
         sources = self.site_to_pref.get(site, self.site_to_pref['default'])
@@ -131,14 +131,14 @@ class QAHandler:
             sources = [re.sub(r'qa_?', '', intent).upper()]  # take source from intent forcefully
         for src in sources:
             if src == 'WIKI':  # wiki is a bit more detailed
-                cfgs.extend([(f'"{filtered_query_nac}"', 'title_str', 'wiki'),
-                            (f'"{filtered_query_nac}"', 'title_cz', 'wiki'),
-                            (f'"{filtered_query_nac}"', 'first_paragraph_cz', 'wiki'),
-                            (filtered_query_nac, 'title_cz', 'wiki'),
-                            (filtered_query_nacv, 'first_paragraph_cz', 'wiki')])
+                cfgs.extend([(f'"{filtered_query.words_nac}"', 'title_str', 'wiki'),
+                            (f'"{filtered_query.lemmas_nac}"', 'title_cz', 'wiki'),
+                            (f'"{filtered_query.lemmas_nac}"', 'first_paragraph_cz', 'wiki'),
+                            (filtered_query.lemmas_nac, 'title_cz', 'wiki'),
+                            (filtered_query.lemmas_nacv, 'first_paragraph_cz', 'wiki')])
             else:  # other sources are stricter
-                cfgs.extend([(filtered_query_nacv, 'title_cz', src),
-                             (filtered_query_nacv, 'first_paragraph_cz', src),])
+                cfgs.extend([(filtered_query.lemmas_nacv, 'title_cz', src),
+                             (filtered_query.lemmas_nacv, 'first_paragraph_cz', src),])
         return cfgs
 
     def apply_qa(self, query, context=None, intent='qawiki', exact=False, site='default'):
@@ -147,17 +147,16 @@ class QAHandler:
             reformulated_query = self.reformulate_model.run(question=query) or query
         else:
             reformulated_query = query
-        filtered_query_nac, filtered_query_nacv, query_type =\
-            self.remote_service_handler.filter_query(reformulated_query)
+        filtered, query_type = self.remote_service_handler.filter_query(reformulated_query)
         if isinstance(self.qa_model, OpenAIQA):
             query_type = 'default'
-        logger.info(f'Q: {query} | F: {filtered_query_nac} | {filtered_query_nacv}')
+        logger.info(f'Q: {query} | F: {filtered.words_nac} | {filtered.words_nacv} | {filtered.lemmas_nacv}')
 
-        solr_configs = self.get_solr_configs(site, intent, filtered_query_nac, filtered_query_nacv)
+        solr_configs = self.get_solr_configs(site, intent, filtered)
 
         src = None  # source
         chosen_answer = None
-        if not context and filtered_query_nacv:
+        if not context and filtered.words_nacv:
             for q, a, src in solr_configs:
                 if not q:  # skip if filtered query is empty
                     continue

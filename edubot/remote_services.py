@@ -25,6 +25,13 @@ class RemoteServiceHandler:
                 self.female_to_male[row['female']] = row['male']
         with open(config['IDENTITY_VERBS_PATH'], 'rt') as fd:
             self.identity_verbs = set((w.strip() for w in fd.readlines() if len(w.strip()) > 0))
+        # abbrev replacements: prepare all cases
+        self.abbrev_replace = config['ABBREV_REPLACE']
+        for abbr, expand in list(self.abbrev_replace.items()):
+            tagged = self.tagger.analyze(expand)
+            self.abbrev_replace[abbr] = {'lemma': ' '.join([w.lemma for w in tagged])}
+            for target_case in ['1', '2', '3', '4', '6', '7']:
+                self.abbrev_replace[abbr][target_case] = ' '.join(self.morpho.inflect_phrase(tagged, target_case))
 
     def ask_solr(self, query, attrib=None, source='wiki'):
         if source == 'wiki':
@@ -46,26 +53,47 @@ class RemoteServiceHandler:
         return j
 
     def filter_query(self, query):
-        try:
-            udpipe = requests.get(url_fix(self.urls['UDPIPE_TAG'].format(query=query)))
-            tagged = conllu.parse(udpipe.json()['result'])
-            tagged = [dotdict({'form': w['form'], 'lemma': w['lemma'], 'tag': w['xpos']}) for s in tagged for w in s]
-        except Exception as e:
-            logger.warn('UDpipe problem:' + str(e))
-            return query, None, None
-        logger.debug("\n" + "\n".join(["\t".join([w['form'], w['lemma'], w['tag']]) for w in tagged]))
-        filtered_nac = " ".join([w.form for w in tagged
-                                 if w.tag[0] in set(['N', 'B', 'A', 'C']) and w.lemma not in self.stopwords])
-        filtered_nacv = " ".join([w.form for w in tagged
-                                  if w.tag[0] in set(['N', 'B', 'A', 'C', 'V']) and w.lemma not in self.stopwords])
+        tagged = self.tagger.analyze(query)
+        logger.debug("\n" + "\n".join(["\t".join([w.form, w.lemma, w.tag]) for w in tagged]))
+        allowed_tags = set(['N', 'B', 'A', 'C'])
+
+        def is_allowed(w):
+            return w.tag[0] in allowed_tags and w.lemma not in self.stopwords
+
+        words_nac = self.replace_abbrevs([w for w in tagged if is_allowed(w)], spaced=True)
+        lemmas_nac = self.replace_abbrevs([w for w in tagged if is_allowed(w)], use_lemmas=True, spaced=True)
+        allowed_tags.add('V')
+        words_nacv = self.replace_abbrevs([w for w in tagged if is_allowed(w)], spaced=True)
+        lemmas_nacv = self.replace_abbrevs([w for w in tagged if is_allowed(w)], use_lemmas=True, spaced=True)
         qtype = 'default'
-        if not filtered_nacv:
+        if not words_nacv:
             qtype = 'empty'
         elif tagged[0].tag[0] == 'V':
             qtype = 'Y/N'
         elif tagged[0].lemma == 'proč':
             qtype = 'why'
-        return filtered_nac, filtered_nacv, qtype
+        return dotdict({'words_nac': words_nac, 'lemmas_nac': lemmas_nac,
+                        'words_nacv': words_nacv, 'lemmas_nacv': lemmas_nacv}), qtype
+
+    def replace_abbrevs(self, tagged: list, use_lemmas=False, spaced=False):
+        out = ''
+        for prev_word, word in zip([None] + tagged, tagged):
+            out += ' ' if (spaced or word.space_before) else ''
+            if word.lemma.upper() in self.abbrev_replace:
+                if use_lemmas:
+                    out += self.abbrev_replace[word.lemma.upper()]['lemma']
+                else:
+                    # determine the abbrev case
+                    target_case = '1'
+                    if prev_word:
+                        if prev_word.tag[0] == 'R':
+                            target_case = prev_word.tag[4]
+                        if prev_word.tag[0] == 'N':
+                            target_case = '2'
+                    out += self.abbrev_replace[word.lemma.upper()][target_case]
+            else:
+                out += word.lemma if use_lemmas else word.form
+        return out
 
     def correct_diacritics(self, text: str):
         r = requests.post(self.urls['KOREKTOR'], {'data': text, 'model': 'czech-diacritics_generator'})
