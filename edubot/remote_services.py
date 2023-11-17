@@ -93,7 +93,7 @@ class RemoteServiceHandler:
                     out += self.abbrev_replace[word.lemma.upper()][target_case]
             else:
                 out += word.lemma if use_lemmas else word.form
-        return out
+        return out.strip()
 
     def correct_diacritics(self, text: str):
         r = requests.post(self.urls['KOREKTOR'], {'data': text, 'model': 'czech-diacritics_generator'})

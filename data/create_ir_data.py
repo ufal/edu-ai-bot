@@ -5,6 +5,7 @@ from edubot.cs_morpho import Analyzer
 from edubot.remote_services import RemoteServiceHandler
 from argparse import ArgumentParser
 import yaml
+import csv
 
 
 def process_and_append_data(df, out_fd, expand_f, url_key, start=0):
@@ -47,11 +48,12 @@ if __name__ == '__main__':
 
     with open(args.target_file, 'w', encoding='UTF-8') as out_fd:
         # WIKI data
-        wiki_df = pd.read_csv(args.wiki, sep='\t', header=None, names=['id', 'url', 'title', 'first_paragraph'])
+        wiki_df = pd.read_csv(args.wiki, sep='\t', quoting=csv.QUOTE_NONE, header=None, names=['id', 'url', 'title', 'first_paragraph'])
         wiki_df = wiki_df[wiki_df['title'].notnull()]
         wiki_df = wiki_df[wiki_df['title'] != '¶']
         wiki_df['title_cz'] = wiki_df['title'].apply(lemmatize)
         wiki_df['first_paragraph_cz'] = wiki_df['first_paragraph'].apply(lemmatize)
+        wiki_df = wiki_df.set_index('id')
         wiki_df.to_csv(out_fd, sep='\t', mode='a', header=True)
 
         # add LO data
