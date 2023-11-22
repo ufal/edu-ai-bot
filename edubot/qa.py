@@ -213,10 +213,10 @@ class QAHandler:
         """
         reference_repr = self.repr_model.encode(reference)
         candidates_repr = (self.repr_model.encode(c[0]) for c in candidates)
-        distances = [(cosine(reference_repr, cr), c[1]) for cr, c in zip(candidates_repr, candidates)]
+        distances = sorted([(cosine(reference_repr, cr), c[1]) for cr, c in zip(candidates_repr, candidates)], key=lambda c: c[0])
         logger.debug("\n" + "\n".join([(f'D: {doc["title"]}/{sim:.4f}' if sim < threshold else f'D: {doc["title"]}/{sim:.4f} !!') for sim, doc in distances]))
         distances = [c for c in distances if c[0] < threshold]
-        return sorted(distances, key=lambda c: c[0])
+        return distances
 
     def filter_inappropriate(self, docs):
         res = []
