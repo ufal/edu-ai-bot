@@ -20,7 +20,7 @@ def process_and_append_data(df, out_fd, expand_f, url_key, start=0):
     df2 = pd.DataFrame.from_dict(data)
     df2 = df2.set_index(pd.RangeIndex(start=start, stop=start + len(data)))
     df2.index.name = 'id'
-    df2.to_csv(out_fd, sep='\t', mode='a', header=False)
+    df2.to_csv(out_fd, sep='\t', mode='a', header=False, columns=['url', 'title', 'title_cz', 'first_paragraph', 'first_paragraph_cz'])
 
 
 if __name__ == '__main__':
@@ -54,7 +54,7 @@ if __name__ == '__main__':
         wiki_df['title_cz'] = wiki_df['title'].apply(lemmatize)
         wiki_df['first_paragraph_cz'] = wiki_df['first_paragraph'].apply(lemmatize)
         wiki_df = wiki_df.set_index('id')
-        wiki_df.to_csv(out_fd, sep='\t', mode='a', header=True)
+        wiki_df.to_csv(out_fd, sep='\t', mode='a', header=True, columns=['url', 'title', 'title_cz', 'first_paragraph', 'first_paragraph_cz'])
 
         # add LO data
         lo_df = pd.read_excel(args.custom, sheet_name='QA LO', header=None)
