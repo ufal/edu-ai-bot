@@ -48,13 +48,13 @@ def remove_intermediate_folder(loc):
       break
     intermediate_location = files[0]
     intermediate_locations = [intermediate_location] + intermediate_locations
-  
+
   if intermediate_location == loc:
     return
-  
+
   for f in os.listdir(intermediate_location):
     os.rename(os.path.join(intermediate_location, f), os.path.join(loc, f))
-  
+
   for il in intermediate_locations:
     os.rmdir(il)
 
@@ -156,10 +156,9 @@ class IntentClassifierModel:
 
     def predict_example(self, example):
         logits, _ = self._feed(example)
-        logits_sm = torch.softmax(logits, dim=-1)
-        predicted_id = numpy.argmax(logits.numpy(), axis=-1)
-        pred_confidence = numpy.max(logits_sm.numpy(), axis=-1)
-        x = [(self.id2lbl[pred], conf) for pred, conf in zip(predicted_id, pred_confidence)]
+        logits_sm = torch.softmax(logits, dim=-1).numpy()[0]
+        x = [(self.id2lbl[idx], logits_sm[idx]) for idx in numpy.argsort(-logits_sm)
+             if logits_sm[idx] >= 1e-4]
         return x
 
     def encode(self, sentence):
@@ -173,7 +172,7 @@ class IntentClassifierModel:
         self.trainer.save_model(self.out_dir)
         with open(os.path.join(self.out_dir, 'labels.pkl'), 'wb') as fd:
             pickle.dump(self.lbl2id, fd)
-    
+
     def _download(self):
         url = self.config['INTENT_MODEL']['URL']
         save_dir = self.config['INTENT_MODEL']['PATH']

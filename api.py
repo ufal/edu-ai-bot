@@ -47,9 +47,10 @@ def ask():
     logger.info(f"Korektor: {query}")
     context_store.store_utterance(query, conv_id)
 
-    qa_ir, qa_url = None, None
+    qares = None
 
     # classify intent, with overrides
+    intent_dist = None
     if request.json.get('w') or query.startswith('/w'):
         query = re.sub(r'^/w\s+', '', query)
         intent, intent_conf = 'qawiki', 2.0
@@ -62,8 +63,13 @@ def ask():
     elif query.startswith('/P'):
         intent, query = re.match(r'/([A-Za-z_]+) (.*)', query).groups()
         intent_conf = 2.0
+    elif intent_clf_model:
+        intent_dist = intent_clf_model.predict_example(query)
+        intent, intent_conf = intent_dist[0]
     else:
-        intent, intent_conf = intent_clf_model.predict_example(query)[0] if intent_clf_model else (None, None)
+        intent, intent_conf = None, None
+    if not intent_dist:
+        intent_dist = [(intent, intent_conf)]
     logger.info(f"Intent: {intent} ({intent_conf})")
 
     # process intent -- respond
@@ -88,32 +94,34 @@ def ask():
         setting = request.json.get('site', 'default')
         if intent_conf > 1:  # forced intent
             setting = 'force'
-        qa_ir, qa_resp, title, qa_url = qa_handler.apply_qa(query, context=None,
-                                                            intent=intent,
-                                                            exact=request.json.get('exact'),
-                                                            site=setting)
-        if not qa_resp and not qa_ir:
+        qares = qa_handler.apply_qa(query, context=None, intent=intent, exact=request.json.get('exact'), site=setting)
+
+        if not qares.reply and not qares.retrieved:
             response = 'Promiňte, teď jsem nerozuměl.'
         else:
-            if qa_url and 'wikipedia' in qa_url:
-                qa_url = 'https://cs.wikipedia.org/wiki/' + title.replace(' ', '_')
-                if qa_resp:
-                    response = f'Myslím, že {qa_resp} (Zdroj: {qa_url} )'
+            if qares.source == 'wiki':
+                if qares.reply:
+                    response = f'Myslím, že {qares.reply} (Zdroj: {qares.url} )'
                 else:
-                    response = f'Tohle by vám mohlo pomoct: {qa_ir} (Zdroj: {qa_url} )'
-            elif not qa_url:  # GPT3 hallucination for no retrieval
-                response = f'Nejsem si moc jistý, ale myslím, že {qa_resp}'
-            elif qa_url == '-':  # NPI not providing URLs
-                response = qa_ir
+                    response = f'Tohle by vám mohlo pomoct: {qares.retrieved} (Zdroj: {qares.url} )'
+            elif not qares.url:  # GPT3 hallucination for no retrieval
+                response = f'Nejsem si moc jistý, ale myslím, že {qares.reply}'
+            elif qares.url == '-':  # NPI not providing URLs
+                response = qares.retrieved
             else:
-                response = f'{qa_ir} (Zdroj: {qa_url} )'
+                response = f'{qares.retrieved} (Zdroj: {qares.url} )'
 
     # return response
 
     response_dict = {
         'a': response,
-        'intent': intent
+        'intent': [{'label': i[0], 'score': float(f'{i[1]:.6f}')} for i in intent_dist]
     }
+    if qares:
+        if qares.source == 'wiki':
+            response_dict['wiki'] = qares.all_results
+        else:
+            response_dict['qa'] = qares.all_results
     if intent.startswith('#'):
         response_dict['control'] = 1
     # store history
@@ -128,8 +136,8 @@ def ask():
                                 'url': request.url,
                                 'json': request.json},
                     'response': {'text': response_dict,
-                                 'qa_url': qa_url,
-                                 'qa_ir': qa_ir,
+                                 'qa_url': qares.url,
+                                 'qa_ir': qares.retrieved,
                                  'intent': intent,
                                  'korektor': query}}
         with open(config['LOGFILE_PATH'], 'a', encoding='UTF_8') as fh:

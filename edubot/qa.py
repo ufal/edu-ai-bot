@@ -6,6 +6,7 @@ from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 import os
 from langchain import OpenAI, PromptTemplate, LLMChain
 import re
+from dataclasses import dataclass
 
 
 class OpenAIQA:
@@ -71,6 +72,15 @@ class HuggingFaceQA:
         answer_ids = inputs["input_ids"][0][start_position:end_position]
         response = self.tokenizer.decode(answer_ids)
         return response, 1.0  # TODO fix confidence scores somehow
+
+
+@dataclass
+class QAResults:
+    retrieved: str
+    reply: str
+    url: str
+    source: str
+    all_results: list
 
 
 class QAHandler:
@@ -155,12 +165,13 @@ class QAHandler:
         solr_configs = self.get_solr_configs(site, intent, filtered)
 
         src = None  # source
-        chosen_answer = None
+        answers = None
         if not context and filtered.words_nacv:
             for q, a, src in solr_configs:
                 if not q:  # skip if filtered query is empty
                     continue
                 db_result = self.remote_service_handler.ask_solr(query=q, attrib=a, source=src)
+                import pudb; pu.db
 
                 if db_result.get('docs'):
                     logger.debug(f"{src} \n" + "\n".join([f'D: {doc["title"]}/{doc["score"]}' for doc in db_result['docs']]))
@@ -172,51 +183,59 @@ class QAHandler:
                     if self.repr_model:
                         if src == 'wiki':
                             # rank wiki articles by content (=answer) as title isn't very indicative
-                            ranked_answers = self.rank_utterances(query, [(a['first_paragraph'], a) for a in answers])
+                            answers = self.rank_utterances(query, [(a['first_paragraph'], a) for a in answers])
                         else:
                             threshold = self.distance_threshold
                             if intent == 'qa_' + src.lower():  # source matching intent -- higher threshold
                                 threshold = self.distance_threshold_indomain
                             # but rank other articles by title (=question) as this is closer to the query
-                            ranked_answers = self.rank_utterances(query, [(a['title'], a) for a in answers],
-                                                                  threshold=threshold)
-                            if not ranked_answers:
+                            answers = self.rank_utterances(query, [(a['title'], a) for a in answers],
+                                                           threshold=threshold)
+                            if not answers:
                                 logger.info('No result left after thresholding.')
                                 continue
-                        _, chosen_answer = ranked_answers[0]
-                    else:
-                        chosen_answer = answers[0]
-                    break  # stop searching if we found something
+                    # stop searching if we found something (we didn't hit "continue")
+                    break
 
-        if chosen_answer is None:  # nothing fonud
-            return None, None, None, None
+        if answers is None:  # nothing fonud
+            return QAResults()
+
+        for answer in answers:
+            answer["content"] = answer["first_paragraph"]
+            del answer["first_paragraph"]
+            answer["score"] = float(answer["score"])
+            if src == 'wiki':
+                # replace ID with title for wiki URLs
+                answer["url"] = 'https://cs.wikipedia.org/wiki/' + answer['title'].replace(' ', '_')
+            else:
+                # remove source prefix from URL for others than wiki
+                answer["url"] = re.sub(r'^[A-Z]+ http', 'http', answer["url"])
 
         # run the QA model for wiki
         if src == 'wiki' and exact and query_type == 'default' and self.qa_model:
             if not context:
-                context = chosen_answer['first_paragraph']
+                context = answers[0]['content']
             response, _ = self.qa_model({'question': query, 'context': context})
-            return context, response, chosen_answer["title"], chosen_answer["url"]
-        # remove source prefix from URL for others than wiki
-        elif chosen_answer["url"]:
-            chosen_answer["url"] = re.sub(r'^[A-Z]+ http', 'http', chosen_answer["url"])
+            return QAResults(retrieved=context, reply=response, url=answers[0]["url"], source=src, all_results=answers)
 
-        return chosen_answer['first_paragraph'], None, chosen_answer["title"], chosen_answer["url"]
+        return QAResults(retrieved=answers[0]['content'], reply=None, url=answers[0]["url"], source=src, all_results=answers)
 
     def rank_utterances(self, reference: Text, candidates: Iterable[Tuple[Text, Any]], threshold: Number = 2.0)\
-            -> List[Tuple[float, Dict[Text, Text]]]:
+            -> List[Dict[Text, Text]]:
         """
         :param reference: The reference text
         :param candidates: Iterable of tuples (keytext, Any), keytext is used for sorting
         :param threshold: Max. threshold for cosine distance -- anything over that is filtered out
-        :return: sorted candidates list along with zipped distances. The keys used for representation aren't returned.
+        :return: candidates sorted by distances, with the "score" value replaced by distance. The keys used for representation aren't returned.
         """
         reference_repr = self.repr_model.encode(reference)
         candidates_repr = (self.repr_model.encode(c[0]) for c in candidates)
         distances = sorted([(cosine(reference_repr, cr), c[1]) for cr, c in zip(candidates_repr, candidates)], key=lambda c: c[0])
         logger.debug("\n" + "\n".join([(f'D: {doc["title"]}/{sim:.4f}' if sim < threshold else f'D: {doc["title"]}/{sim:.4f} !!') for sim, doc in distances]))
         distances = [c for c in distances if c[0] < threshold]
-        return distances
+        for d, c in distances:
+            c["score"] = f'{d:.6f}'
+        return [c for _, c in distances]
 
     def filter_inappropriate(self, docs):
         res = []
