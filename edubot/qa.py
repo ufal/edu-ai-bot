@@ -171,7 +171,6 @@ class QAHandler:
                 if not q:  # skip if filtered query is empty
                     continue
                 db_result = self.remote_service_handler.ask_solr(query=q, attrib=a, source=src)
-                import pudb; pu.db
 
                 if db_result.get('docs'):
                     logger.debug(f"{src} \n" + "\n".join([f'D: {doc["title"]}/{doc["score"]}' for doc in db_result['docs']]))
