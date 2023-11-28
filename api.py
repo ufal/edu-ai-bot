@@ -136,8 +136,8 @@ def ask():
                                 'url': request.url,
                                 'json': request.json},
                     'response': {'text': response_dict,
-                                 'qa_url': qares.url,
-                                 'qa_ir': qares.retrieved,
+                                 'qa_url': qares.url if qares else None,
+                                 'qa_ir': qares.retrieved if qares else None,
                                  'intent': intent,
                                  'korektor': query}}
         with open(config['LOGFILE_PATH'], 'a', encoding='UTF_8') as fh:
