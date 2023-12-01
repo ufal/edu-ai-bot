@@ -46,6 +46,8 @@ def ask():
     query = remote_service_handler.correct_diacritics(request.json['q'])
     logger.info(f"Korektor: {query}")
     context_store.store_utterance(query, conv_id)
+    # check if we want to return debug output
+    debug_output = request.json.get('debug')
 
     qares = None
 
@@ -112,16 +114,16 @@ def ask():
                 response = f'{qares.retrieved} (Zdroj: {qares.url} )'
 
     # return response
-
     response_dict = {
         'a': response,
-        'intent': [{'label': i[0], 'score': float(f'{i[1]:.6f}')} for i in intent_dist]
     }
-    if qares:
-        if qares.source == 'wiki':
-            response_dict['wiki'] = qares.all_results
-        else:
-            response_dict['qa'] = qares.all_results
+    if debug_output:
+        response_dict['intent'] = [{'label': i[0], 'score': float(f'{i[1]:.6f}')} for i in intent_dist]
+        if qares:
+            if qares.source == 'wiki':
+                response_dict['wiki'] = qares.all_results
+            else:
+                response_dict['qa'] = qares.all_results
     if intent.startswith('#'):
         response_dict['control'] = 1
     # store history
