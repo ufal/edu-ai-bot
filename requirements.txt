@@ -6,7 +6,8 @@ scipy
 scikit-learn
 matplotlib
 pyyaml
-flask
+flask==2.2.2
+Werkzeug==2.2.2
 logzero
 sentence_transformers
 ufal.morphodita
