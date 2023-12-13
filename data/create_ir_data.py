@@ -14,7 +14,7 @@ def process_and_append_data(df, out_fd, expand_f, url_key, start=0):
     data = [{'url': f'{url_key} ' + (i[2] if isinstance(i[2], str) else '-'),
              'title': expand_f(i[0], lemmatize=False),
              'title_cz': expand_f(i[0], lemmatize=True),
-             'first_paragraph': expand_f(i[1].replace('\n', ' '), lemmatize=False),
+             'first_paragraph': i[1].replace('\n', ' '), # do not expand abbrevs in plain text
              'first_paragraph_cz': expand_f(i[1].replace('\n', ' '), lemmatize=True), }
             for i in data if isinstance(i[1], str)]
     df2 = pd.DataFrame.from_dict(data)
