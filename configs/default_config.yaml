@@ -22,17 +22,17 @@ QA:
       'fisting', 'rychlovka', 'anální', 'creampie', 'BDSM', 'pornografie', 'prostituce',]
   DISTANCE_THRESHOLD: 0
   DISTANCE_THRESHOLD_INDOMAIN: 10
-REFORMULATE_MODEL_PATH: "" # "openai/text-yyyy-00x" or empty
+  REFORMULATE_MODEL_PATH: "" # "openai/text-yyyy-00x" or empty
+  SENTENCE_REPR_MODEL: "paraphrase-multilingual-mpnet-base-v2"
+  # SENTENCE_REPR_MODEL: "distiluse-base-multilingual-cased-v2"
+  # SENTENCE_REPR_MODEL: "models/nli_v2_xlm-roberta_base"
+  # SENTENCE_REPR_MODEL: "Seznam/dist-mpnet-paracrawl-cs-en"
+  # SENTENCE_REPR_MODEL: "Seznam/simcse-dist-mpnet-czeng-cs-en"
+  SENTENCE_REPR_MODEL_INDOMAIN: "Seznam/retromae-small-cs"
 HC_RESPONSES_PATH: "data/handcrafted_responses.yml"
 INTENT_MODEL:
     PATH: "edubot/educlf/trained-model"
     URL: "http://quest.ms.mff.cuni.cz/namuddis/intent-model.zip"
-# SENTENCE_REPR_MODEL: "paraphrase-multilingual-mpnet-base-v2"
-# SENTENCE_REPR_MODEL: "distiluse-base-multilingual-cased-v2"
-# SENTENCE_REPR_MODEL: "models/nli_v2_xlm-roberta_base"
-# SENTENCE_REPR_MODEL: "Seznam/dist-mpnet-paracrawl-cs-en"
-# SENTENCE_REPR_MODEL: "Seznam/simcse-dist-mpnet-czeng-cs-en"
-SENTENCE_REPR_MODEL: "Seznam/retromae-small-cs"
 CHITCHAT: 
     # MODEL: "facebook/blenderbot-400M-distill"
     MODEL: "AIML"

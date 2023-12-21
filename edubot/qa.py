@@ -7,6 +7,8 @@ import os
 from langchain import OpenAI, PromptTemplate, LLMChain
 import re
 from dataclasses import dataclass
+from sentence_transformers import SentenceTransformer
+from edubot.educlf.model import IntentClassifierModel
 
 
 class OpenAIQA:
@@ -88,38 +90,33 @@ class QAHandler:
     def __init__(self, config, remote_service_handler, device):
 
         self.remote_service_handler = remote_service_handler
+        config = config['QA']
 
         # load QA model
-        if config['QA']['MODEL_TYPE'] == 'huggingface':
-            self.qa_model = HuggingFaceQA(config['QA']['HUGGINGFACE_MODEL'], device)
-        elif config['QA']['MODEL_TYPE'] == 'openai':
-            self.qa_model = OpenAIQA(config['QA']['OPENAI_MODEL'])
-        elif config['QA']['MODEL_TYPE'] == 'local' and os.path.isdir(config['QA']['LOCAL_MODEL']):
+        if config['MODEL_TYPE'] == 'huggingface':
+            self.qa_model = HuggingFaceQA(config['HUGGINGFACE_MODEL'], device)
+        elif config['MODEL_TYPE'] == 'openai':
+            self.qa_model = OpenAIQA(config['OPENAI_MODEL'])
+        elif config['MODEL_TYPE'] == 'local' and os.path.isdir(config['LOCAL_MODEL']):
             from multilingual_qaqg.mlpipelines import pipeline
 
             self.qa_model = pipeline("multitask-qa-qg",
-                                     os.path.join(config['QA']['LOCAL_MODEL'], "checkpoint-185000"),
-                                     os.path.join(config['QA']['LOCAL_MODEL'], "mt5_qg_tokenizer"),
+                                     os.path.join(config['LOCAL_MODEL'], "checkpoint-185000"),
+                                     os.path.join(config['LOCAL_MODEL'], "mt5_qg_tokenizer"),
                                      use_cuda=(device.type == 'cuda'))
         else:
             logger.warning('Could not find valid QA model setting, will run without it')
             self.qa_model = None
-        logger.info(f'QA model: {config["QA"]["MODEL_TYPE"]} / {config["QA"][config["QA"]["MODEL_TYPE"].upper() + "_" + "MODEL"]} / {str(type(self.qa_model))}')
+        logger.info(f'QA model: {config["MODEL_TYPE"]} / {config[config["MODEL_TYPE"].upper() + "_" + "MODEL"]} / {str(type(self.qa_model))}')
 
-        if config.get('SENTENCE_REPR_MODEL', '').lower() in ['robeczech', 'eleczech']:
-            from edubot.educlf.model import IntentClassifierModel
-            self.repr_model = IntentClassifierModel(config['SENTENCE_REPR_MODEL'],
-                                                    device,
-                                                    label_mapping=None,
-                                                    out_dir=None)
-        elif 'SENTENCE_REPR_MODEL' in config:
-            from sentence_transformers import SentenceTransformer
-            self.repr_model = SentenceTransformer(config['SENTENCE_REPR_MODEL'],
-                                                  device=device)
-        else:
-            self.repr_model = None
+        # init reranking models
+        self.repr_model = self.init_repr_model(config.get('SENTENCE_REPR_MODEL'), device)
         logger.info(f'Sentence repr model: {config.get("SENTENCE_REPR_MODEL")} / {str(type(self.repr_model))}')
 
+        self.repr_model_indomain = self.init_repr_model(config.get('SENTENCE_REPR_MODEL_INDOMAIN'), device)
+        logger.info(f'Sentence repr model in-domain: {config.get("SENTENCE_REPR_MODEL_INDOMAIN")} / {str(type(self.repr_model_indomain))}')
+
+        # init reformulation model (currently not used)
         reformulate_model_path = config.get('REFORMULATE_MODEL_PATH', None)
         if reformulate_model_path is not None and 'openai/' in reformulate_model_path:
             self.reformulate_model = OpenAIReformulate(reformulate_model_path.split('/')[-1])
@@ -127,11 +124,21 @@ class QAHandler:
             self.reformulate_model = None
         logger.info(f'Reformulate model: {reformulate_model_path} / {str(type(self.reformulate_model))}')
 
-        self.site_to_pref = config['QA'].get('SITE_TO_PREF', {'default': ['WIKI']})
+        # init additional settings
+        self.site_to_pref = config.get('SITE_TO_PREF', {'default': ['WIKI']})
+        self.inappropriate_regex = re.compile(r'\b(' + '|'.join(config.get('INAPPROPRIATE_KWS', ['$^'])) + r')\b', flags=re.I)
+        self.distance_threshold = config.get('DISTANCE_THRESHOLD', 2.0)
+        self.distance_threshold_indomain = config.get('DISTANCE_THRESHOLD_INDOMAIN', 2.0)
 
-        self.inappropriate_regex = re.compile(r'\b(' + '|'.join(config['QA'].get('INAPPROPRIATE_KWS', ['$^'])) + r')\b', flags=re.I)
-        self.distance_threshold = config['QA'].get('DISTANCE_THRESHOLD', 2.0)
-        self.distance_threshold_indomain = config['QA'].get('DISTANCE_THRESHOLD_INDOMAIN', 2.0)
+    def init_repr_model(self, model_name, device):
+        """Simple initializer for representation models (supporting IntentClassifierModel (legacy) as well as SentenceTransformer)"""
+
+        if model_name and (model_name.lower() in ['robeczech', 'eleczech']):
+            return IntentClassifierModel(model_name, device, label_mapping=None, out_dir=None)
+        elif model_name:
+            return SentenceTransformer(model_name, device=device)
+        else:
+            return None
 
     def get_solr_configs(self, site, intent, filtered_query):
         """Get SOLR search configs -- what query to build, which attributes to search, what sources to filter."""
@@ -182,14 +189,14 @@ class QAHandler:
                     if self.repr_model:
                         if src == 'wiki':
                             # rank wiki articles by content (=answer) as title isn't very indicative
-                            answers = self.rank_utterances(query, [(a['first_paragraph'], a) for a in answers])
+                            answers = self.rank_utterances(self.repr_model, query, [(a['first_paragraph'], a) for a in answers])
                         else:
+                            rank_model = self.repr_model_indomain or self.repr_model
                             threshold = self.distance_threshold
                             if intent == 'qa_' + src.lower():  # source matching intent -- higher threshold
                                 threshold = self.distance_threshold_indomain
-                            # but rank other articles by title (=question) as this is closer to the query
-                            answers = self.rank_utterances(query, [(a['title'], a) for a in answers],
-                                                           threshold=threshold)
+                            # rank indomain articles by title (=question) as this is closer to the query
+                            answers = self.rank_utterances(rank_model, query, [(a['title'], a) for a in answers], threshold)
                             if not answers:
                                 logger.info('No result left after thresholding.')
                                 continue
@@ -219,16 +226,17 @@ class QAHandler:
 
         return QAResults(retrieved=answers[0]['content'], reply=None, url=answers[0]["url"], source=src, all_results=answers)
 
-    def rank_utterances(self, reference: Text, candidates: Iterable[Tuple[Text, Any]], threshold: Number = 2.0)\
+    def rank_utterances(self, rank_model, reference: Text, candidates: Iterable[Tuple[Text, Any]], threshold: Number = 2.0)\
             -> List[Dict[Text, Text]]:
         """
+        :param rank_model: The model to use for the ranking
         :param reference: The reference text
         :param candidates: Iterable of tuples (keytext, Any), keytext is used for sorting
         :param threshold: Max. threshold for cosine distance -- anything over that is filtered out
         :return: candidates sorted by distances, with the "score" value replaced by distance. The keys used for representation aren't returned.
         """
-        reference_repr = self.repr_model.encode(reference)
-        candidates_repr = (self.repr_model.encode(c[0]) for c in candidates)
+        reference_repr = rank_model.encode(reference)
+        candidates_repr = (rank_model.encode(c[0]) for c in candidates)
         distances = sorted([(cosine(reference_repr, cr), c[1]) for cr, c in zip(candidates_repr, candidates)], key=lambda c: c[0])
         logger.debug("\n" + "\n".join([(f'D: {doc["title"]}/{sim:.4f}' if sim < threshold else f'D: {doc["title"]}/{sim:.4f} !!') for sim, doc in distances]))
         distances = [c for c in distances if c[0] < threshold]
