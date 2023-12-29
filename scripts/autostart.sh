@@ -1,7 +1,7 @@
 #!/bin/bash
 
 USER=`whoami`
-EMAIL="odusek@ufal.mff.cuni.cz"
+EMAIL="user@domain.cz"
 PORT=8202
 API_KEY=$1
 SOLR_URL="http://quest.ms.mff.cuni.cz/namuddis/qasolr/wiki_test/query"
