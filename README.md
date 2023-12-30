@@ -204,5 +204,8 @@ python -m scripts.evaluate --eval_file data/edubot-data-augmented.json --data_ro
 
 ## LICENSE & ACKNOWLEDGEMENTS
 
-TODO
+Licensed under [the MIT License](LICENSE.md).
+
+This work was supported by the project TL05000236 “AI asistent pro žáky a učitele” co-financed by the Technological Agency of the Czech Republic within the ÉTA 5 Programme.
+It used resources provided by the LINDAT/CLARIAH-CZ Research Infrastructure (Czech Ministry of Education, Youth and Sports project No. LM2018101).
 
