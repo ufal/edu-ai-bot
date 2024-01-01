@@ -4,7 +4,9 @@ from logzero import logger
 from scipy.spatial.distance import cosine
 from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 import os
-from langchain import OpenAI, PromptTemplate, LLMChain
+from langchain.llms import OpenAI
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
 import re
 from dataclasses import dataclass
 from sentence_transformers import SentenceTransformer
@@ -78,11 +80,11 @@ class HuggingFaceQA:
 
 @dataclass
 class QAResults:
-    retrieved: str
-    reply: str
-    url: str
-    source: str
-    all_results: list
+    retrieved: str = None
+    reply: str = None
+    url: str = None
+    source: str = None
+    all_results: list = None
 
 
 class QAHandler:
@@ -171,7 +173,7 @@ class QAHandler:
 
         solr_configs = self.get_solr_configs(site, intent, filtered)
 
-        src = None  # source
+        src = None  # source where we found something
         answers = None
         if not context and filtered.words_nacv:
             for q, a, src in solr_configs:
@@ -203,8 +205,10 @@ class QAHandler:
                     # stop searching if we found something (we didn't hit "continue")
                     break
 
-        if answers is None:  # nothing fonud
-            return QAResults()
+            if answers is None:  # nothing fonud
+                return QAResults()
+        else:  # context provided, don't search in Solr, just use the QA model (for testing purposes only)
+            answers = [{"first_paragraph": "", "url": "", "score": 0.0, "title": ""}]
 
         for answer in answers:
             answer["content"] = answer["first_paragraph"]
@@ -217,10 +221,9 @@ class QAHandler:
                 # remove source prefix from URL for others than wiki
                 answer["url"] = re.sub(r'^[A-Z]+ http', 'http', answer["url"])
 
-        # run the QA model for wiki
-        if src == 'wiki' and exact and query_type == 'default' and self.qa_model:
-            if not context:
-                context = answers[0]['content']
+        # run the QA model for wiki (or for testing)
+        if (src == 'wiki' or context) and exact and query_type == 'default' and self.qa_model:
+            context = context or answers[0]['content']
             response, _ = self.qa_model({'question': query, 'context': context})
             return QAResults(retrieved=context, reply=response, url=answers[0]["url"], source=src, all_results=answers)
 

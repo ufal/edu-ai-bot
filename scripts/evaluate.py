@@ -1,6 +1,9 @@
 import re
+
 import sys
-sys.path.append('../')
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import logzero
 from edubot.eval import DataParser
 import os
@@ -101,10 +104,11 @@ def run_on_data(data, qa_handler):
             logger.warning("Non-answerable " + str(qa))
             continue
         st = time.time()
-        _, answer_gold_context, _, _ = qa_handler.apply_qa(qa['question'], qa['context'], exact=True)
+        answer_gold_context = qa_handler.apply_qa(qa['question'], qa['context'], exact=True).reply
         exec_times.append(time.time() - st)
         st = time.time()
-        pred_context, answer_pred_context, pred_title, url = qa_handler.apply_qa(qa['question'], None, exact=True)
+        qares = qa_handler.apply_qa(qa['question'], None, exact=True)
+        pred_context, answer_pred_context, pred_title, url = qares.retrieved, qares.reply, qares.all_results[0]['title'], qares.url
         pred_link = get_title_by_url(url)
         gold_link = get_title_by_url(qa['link'])
         exec_times.append(time.time() - st)
