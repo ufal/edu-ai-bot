@@ -55,7 +55,7 @@ class RemoteServiceHandler:
     def filter_query(self, query):
         tagged = self.tagger.analyze(query)
         logger.debug("\n" + "\n".join(["\t".join([w.form, w.lemma, w.tag]) for w in tagged]))
-        allowed_tags = set(['N', 'B', 'A', 'C'])
+        allowed_tags = set(['N', 'B', 'A', 'C', 'F'])  # https://ufal.mff.cuni.cz/techrep/tr64.pdf
 
         def is_allowed(w):
             return w.tag[0] in allowed_tags and w.lemma not in self.stopwords
