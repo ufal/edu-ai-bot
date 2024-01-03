@@ -106,7 +106,7 @@ def ask():
                     response = f'Myslím, že {qares.reply} (Zdroj: {qares.url} )'
                 else:
                     response = f'Tohle by vám mohlo pomoct: {qares.retrieved} (Zdroj: {qares.url} )'
-            elif not qares.url:  # GPT3 hallucination for no retrieval
+            elif not qares.url:  # model hallucination for no retrieval
                 response = f'Nejsem si moc jistý, ale myslím, že {qares.reply}'
             elif qares.url == '-':  # NPI not providing URLs
                 response = qares.retrieved
