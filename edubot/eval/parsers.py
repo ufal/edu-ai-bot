@@ -86,7 +86,7 @@ class EdubotParser(DataParser):
     def load_from_file(self, data_file):
         if data_file.endswith('.tsv'):
             self.load_from_tsv_file(data_file)
-        elif data_file.endswith('.json'):
+        elif data_file.endswith('.json') or data_file.endswith('.jsonl'):
             self.load_from_json(data_file)
         else:
             raise NotImplementedError(f'Unknown file type: {data_file}')
