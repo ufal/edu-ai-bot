@@ -20,7 +20,6 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from nltk.tokenize import word_tokenize
 from edubot.remote_services import RemoteServiceHandler
 from edubot.qa import QAHandler, OpenAIQA
-from langchain import OpenAI, PromptTemplate, LLMChain
 
 def get_title_by_url(url):
     resp = requests.get(url)
@@ -108,8 +107,8 @@ def run_on_data(data, qa_handler):
         exec_times.append(time.time() - st)
         st = time.time()
         qares = qa_handler.apply_qa(qa['question'], None, exact=True)
-        pred_context, answer_pred_context, pred_title, url = qares.retrieved, qares.reply, qares.all_results[0]['title'], qares.url
-        pred_link = get_title_by_url(url)
+        pred_context, answer_pred_context = qares.retrieved, qares.reply
+        pred_link = get_title_by_url(qares.all_results[0]['url'])
         gold_link = get_title_by_url(qa['link'])
         exec_times.append(time.time() - st)
         if answer_pred_context is None or answer_gold_context is None:
@@ -152,7 +151,8 @@ def run_on_data(data, qa_handler):
         total_eval_results_gold['answer_context_token_ratio'].append(
             eval_results_gold['answer_context_token_ratio'] if eval_results_gold['answer_context_token_ratio'] else 0)
 
-    return total_eval_results_predicted, total_eval_results_gold
+    # we don't need to return anything, results are printed on the console at the start of the loop
+    return
 
 
 if __name__ == '__main__':
