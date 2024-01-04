@@ -74,13 +74,15 @@ def run_on_data(data, qa_handler):
                                     'answer_context_token_ratio': [],
                                     'context_bleu': [],
                                     'context_token_ratio': [],
-                                    'url_accuracy': []}
+                                    'url_accuracy': [],
+                                    'context_use_ratio': []}
     total_eval_results_gold = {'answer_f1': [],
                                'answer_context_f1': [],
                                'answer_bleu': [],
                                'answer_context_bleu': [],
                                'answer_token_ratio': [],
-                               'answer_context_token_ratio': []}
+                               'answer_context_token_ratio': [],
+                               'context_use_ratio': []}
     logzero.loglevel(logzero.INFO)
     for qa in data:
         tested += 1
@@ -102,33 +104,38 @@ def run_on_data(data, qa_handler):
         if 'is_impossible' in qa and qa['is_impossible']:  # skip non-answerable for now
             logger.warning("Non-answerable " + str(qa))
             continue
+
         st = time.time()
-        answer_gold_context = qa_handler.apply_qa(qa['question'], qa['context'], exact=True).reply
+        qares_gold = qa_handler.apply_qa(qa['question'], qa['context'], exact=True)
         exec_times.append(time.time() - st)
+
         st = time.time()
-        qares = qa_handler.apply_qa(qa['question'], None, exact=True)
-        pred_context, answer_pred_context = qares.retrieved, qares.reply
-        pred_link = get_title_by_url(qares.all_results[0]['url'])
+        qares_ir = qa_handler.apply_qa(qa['question'], None, exact=True)
+        exec_times.append(time.time() - st)
+
+        answer_gold_context = qares_gold.reply
+        pred_context, answer_pred_context = qares_ir.retrieved, qares_ir.reply
+        pred_link = get_title_by_url(qares_ir.all_results[0]['url'])
         gold_link = get_title_by_url(qa['link'])
-        exec_times.append(time.time() - st)
         if answer_pred_context is None or answer_gold_context is None:
             logger.warning("None answer " + str(qa))
             continue
         logger.warning(f'Average execution time: {sum(exec_times) / len(exec_times):.4f}')
         answer_pred_context = answer_pred_context.strip()
         answer_gold_context = answer_gold_context.strip()
-
+        ir_ctx_used = int(qares_ir.source != 'model')
+        gold_ctx_used = int(qares_gold.source != 'model')
 
         logger.info(f"Question:\t\t\t\t {qa['question']}")
-        logger.info(f"Retrieved context:\t\t {answer_pred_context}")
-        logger.info(f"Gold context:\t\t\t {answer_gold_context}")
+        logger.info(f"Retrieved context (used:{ir_ctx_used}):\t\t {answer_pred_context}")
+        logger.info(f"Gold context (used:{gold_ctx_used}):\t\t\t {answer_gold_context}")
         logger.info(f"Ground truth answer:\t {qa['answers'][0]}")
         logger.info("-" * 100)
 
-        print(f"Question:\t\t\t\t {qa['question']}")
-        print(f"Retrieved context:\t\t {answer_pred_context}")
-        print(f"Gold context:\t\t\t {answer_gold_context}")
-        print(f"Ground truth answer:\t {qa['answers'][0]}")
+        print(f"Question:\t\t\t {qa['question']}")
+        print(f"Retrieved context (used:{ir_ctx_used}):\t\t {answer_pred_context}")
+        print(f"Gold context (used:{gold_ctx_used}):\t\t\t {answer_gold_context}")
+        print(f"Ground truth answer:\t\t {qa['answers'][0]}")
         print("-" * 100)
         eval_results_predicted = evaluate_answer(answer_pred_context, pred_context, qa['answers'][0], qa['context'])
         total_eval_results_predicted['answer_f1'].append(eval_results_predicted['answer_f1'] if eval_results_predicted['answer_f1'] else 0)
@@ -141,6 +148,7 @@ def run_on_data(data, qa_handler):
         total_eval_results_predicted['context_bleu'].append(eval_results_predicted['context_bleu'] if eval_results_predicted['context_bleu'] else 0)
         total_eval_results_predicted['context_token_ratio'].append(eval_results_predicted['context_token_ratio'] if eval_results_predicted['context_token_ratio'] else 0)
         total_eval_results_predicted['url_accuracy'].append(1 if pred_link == gold_link else 0)
+        total_eval_results_predicted['context_use_ratio'].append(ir_ctx_used)
 
         eval_results_gold = evaluate_answer(answer_gold_context, qa['context'], qa['answers'][0])
         total_eval_results_gold['answer_f1'].append(eval_results_gold['answer_f1'] if eval_results_gold['answer_f1'] else 0)
@@ -150,6 +158,7 @@ def run_on_data(data, qa_handler):
         total_eval_results_gold['answer_token_ratio'].append(eval_results_gold['answer_token_ratio'] if eval_results_gold['answer_token_ratio'] else 0)
         total_eval_results_gold['answer_context_token_ratio'].append(
             eval_results_gold['answer_context_token_ratio'] if eval_results_gold['answer_context_token_ratio'] else 0)
+        total_eval_results_gold['context_use_ratio'].append(gold_ctx_used)
 
     # we don't need to return anything, results are printed on the console at the start of the loop
     return

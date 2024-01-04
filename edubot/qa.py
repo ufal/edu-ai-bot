@@ -5,6 +5,7 @@ from scipy.spatial.distance import cosine
 from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 import os
 from langchain.llms import OpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import re
@@ -14,14 +15,31 @@ from edubot.educlf.model import IntentClassifierModel
 
 
 class OpenAIQA:
+
+    CONTEXT_IRRELEVANT_PHRASES = [
+        '(?:není|nejsou) součástí poskytnutého kontextu',
+        'kontext ne(?:poskytuje|obsahuje|uvádí|ní relevantní)',
+        'v(?: poskytnutém)? kontextu není',
+        'kontextu nelze určit',
+        r'není(?: \w+){0,5} (?:ke?|v)(?: poskytnutému?)? kontextu',
+        r'kontext (?:se týká|poskytuje|obsahuje)(?: "?\w+"?){0,10}(?:, (?:ne|nikoliv?)| a neobsahuje| a ne)',
+        '(?:není možné|nelze) (?:odpovědět|určit) (?:na základě|s využitím)(?: poskytnutého)? kontextu',
+    ]
+
     def __init__(self, model_name):
-        answer_llm = OpenAI(model_name=model_name,
-                            temperature=0,
-                            top_p=0.8,
-                            openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
+        # support both legacy & new "chat" models
+        openai_class = OpenAI
+        if "gpt-4" in model_name or "gpt-3.5-turbo-1106" in model_name:
+            openai_class = ChatOpenAI
+
+        answer_llm = openai_class(model_name=model_name,
+                                  temperature=0,
+                                  top_p=0.8,
+                                  openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
         answer_prompt = PromptTemplate(input_variables=['context', 'question'],
                                        template="""Odpověz na otázku s využitím kontextu.
         Využij pouze informace z kontextu, kopíruj text co nejvíc je to možné.
+        Pokud kontext neobsahuje potřebné informace, odpověz jen „Kontext není relevantní“.
         Buď stručný a odpověz maximálně jednou větou. Nepoužívej více vět.
         Kontext:
         {context}
@@ -30,16 +48,34 @@ class OpenAIQA:
         Odpověď:""")
         self.llm_answer_chain = LLMChain(llm=answer_llm, prompt=answer_prompt)
 
+        answer_no_context = PromptTemplate(input_variables=['question'],
+                                       template="""Odpověz na otázku.
+        Buď stručný a odpověz maximálně jednou větou. Nepoužívej více vět.
+        Otázka:
+        {question}
+        Odpověď:""")
+        self.llm_backup_chain = LLMChain(llm=answer_llm, prompt=answer_no_context)
+        self.no_context_pattern = re.compile(r'\b(?:' + '|'.join(self.CONTEXT_IRRELEVANT_PHRASES) + r')\b', re.I)
+
     def __call__(self, kwarg_dict: Dict[Text, Any]) -> Tuple[Text, Text]:
         assert 'context' in kwarg_dict and 'question' in kwarg_dict
         logger.debug(f'OpenAI query {str(kwarg_dict)}')
+        score = 1.0
         try:
-            response = self.llm_answer_chain.run(**kwarg_dict)
+            if kwarg_dict['context']:
+                response = self.llm_answer_chain.run(**kwarg_dict)
+                if self.no_context_pattern.search(response):
+                    logger.debug(f'Re-runing w/o context (response: {response.strip()})')
+                    response = self.llm_backup_chain.run(**kwarg_dict)
+                    score = 0.0
+            else:
+                response = self.llm_backup_chain.run(**kwarg_dict)
+                score = 0.0
         except Exception as e:
             logger.error('Exception in OpenAI/Langchain')
             logger.exception(e)
             response = 'Toto by možná mohlo pomoct: ' + kwarg_dict['context']
-        return response.strip(), 1.0  # scores are not implemented in LangChain yet (https://github.com/hwchase17/langchain/issues/1063)
+        return response.strip(), score
 
 
 class OpenAIReformulate:
@@ -205,10 +241,12 @@ class QAHandler:
                     # stop searching if we found something (we didn't hit "continue")
                     break
 
-            if answers is None:  # nothing fonud
+        if answers is None:
+            if not context and not (intent == 'qawiki' and exact and query_type == 'default' and self.qa_model):  # nothing found
                 return QAResults()
-        else:  # context provided, don't search in Solr, just use the QA model (for testing purposes only)
-            answers = [{"first_paragraph": "", "url": "", "score": 0.0, "title": ""}]
+            else:  # either context is provided or we try our luck with the QA model hallucinating w/o context
+                answers = [{"first_paragraph": "", "url": "", "score": 0.0, "title": ""}]
+                src = 'context' if context else 'model'
 
         for answer in answers:
             answer["content"] = answer["first_paragraph"]
@@ -222,11 +260,11 @@ class QAHandler:
                 answer["url"] = re.sub(r'^[A-Z]+ http', 'http', answer["url"])
 
         # run the QA model for wiki (or for testing)
-        if (src == 'wiki' or context) and exact and query_type == 'default' and self.qa_model:
+        if (src in ['wiki', 'model'] or context) and exact and query_type == 'default' and self.qa_model:
             context = context or answers[0]['content']
-            response, _ = self.qa_model({'question': query, 'context': context})
-            return QAResults(retrieved=context, reply=response, url=answers[0]["url"], source=src, all_results=answers)
-
+            response, score = self.qa_model({'question': query, 'context': context})
+            return QAResults(retrieved=context, reply=response, url=(answers[0]["url"] if score else ''), source=(src if score else 'model'), all_results=answers)
+        # return 1st result as reply
         return QAResults(retrieved=answers[0]['content'], reply=None, url=answers[0]["url"], source=src, all_results=answers)
 
     def rank_utterances(self, rank_model, reference: Text, candidates: Iterable[Tuple[Text, Any]], threshold: Number = 2.0)\

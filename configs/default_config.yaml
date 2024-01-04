@@ -8,7 +8,7 @@ URLs:
     LINDAT_CS2EN: "https://lindat.mff.cuni.cz/services/translation/api/v2/models/cs-en?src=cs&tgt=en"
 QA:
   MODEL_TYPE: "openai" # / "openai" / "local"
-  OPENAI_MODEL: "text-davinci-003"
+  OPENAI_MODEL: "gpt-3.5-turbo-instruct" # "gpt-4-1106-preview" # "text-davinci-003" #  "gpt-3.5-turbo-1106"
   HUGGINGFACE_MODEL: "gaussalgo/xlm-roberta-large_extractive-QA_en-cs"
   LOCAL_MODEL: "multilingual_qaqg"
   SITE_TO_PREF:
